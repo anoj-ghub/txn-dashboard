@@ -1,0 +1,226 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Activity, ArrowDownRight, ArrowRight, ArrowUpRight, BarChart3, CalendarDays, Check, ChevronDown, CircleHelp, CreditCard, Download, Globe2, LayoutDashboard, Link2, Maximize2, RotateCcw, Sparkles, TrendingUp, Users, WalletCards, X } from 'lucide-react';
+import { Area, Bar, BarChart, CartesianGrid, Cell, ComposedChart, LabelList, Line, LineChart, Pie, PieChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { METRICS, MONTHS, change, compact, monthlySeries, number, parseData, percent, periodKey, selectionData, toCSV } from './data.mjs';
+import { fittedTrend, marketSlices } from './executive-data.mjs';
+
+const METRIC_COLORS = ['#21876e', '#497ea8', '#c08734', '#9b72b0'];
+const MARKET_COLORS = ['#21876e', '#6198bc', '#dfb76b', '#9b87b5', '#e29376', '#759c87', '#708ab6', '#b5a072', '#558b8e', '#bc809d', '#86966a', '#b77754', '#6e7d90', '#a69f94'];
+const metrics = METRICS.map((metric, i) => ({ ...metric, color: METRIC_COLORS[i] }));
+const icons = [Activity, CreditCard, WalletCards, Users];
+const axis = { axisLine: false, tickLine: false, tick: { fill: '#6f7e7b', fontSize: 13 }, minTickGap: 18 };
+const grid = <CartesianGrid stroke="#e5ebe7" strokeDasharray="3 5" vertical={false} />;
+
+function Delta({ value }) {
+  return <span className={`ex-delta ${value == null ? 'unavailable' : value < 0 ? 'down' : ''}`}>
+    {value != null && (value < 0 ? <ArrowDownRight size={15} /> : <ArrowUpRight size={15} />)}{percent(value)}
+  </span>;
+}
+
+function ChartTip({ active, payload, label, suffix = '' }) {
+  if (!active || !payload?.length) return null;
+  return <div className="ex-tooltip"><strong>{label || payload[0].name}</strong>{payload.filter(item => item.value != null).map((item, i) => <div key={i}><i style={{ background: item.color || item.payload.fill }} /><span>{item.name}</span><b>{suffix ? `${Number(item.value).toFixed(1)}${suffix}` : number(Math.round(item.value))}</b></div>)}</div>;
+}
+
+function ChartEmpty({ children = 'Complete observations are needed for this chart.' }) {
+  return <div className="ex-chart-empty"><BarChart3 size={28} /><p>{children}</p></div>;
+}
+
+function MarketFilter({ markets, selected, onChange }) {
+  const ref = useRef(null);
+  const [query, setQuery] = useState('');
+  useEffect(() => {
+    const dismiss = event => { if (!ref.current?.contains(event.target) && ref.current) ref.current.open = false; };
+    document.addEventListener('pointerdown', dismiss);
+    return () => document.removeEventListener('pointerdown', dismiss);
+  }, []);
+  return <details className="ex-market-filter" ref={ref} onKeyDown={event => { if (event.key === 'Escape') { ref.current.open = false; ref.current.querySelector('summary').focus(); } }}>
+    <summary><Globe2 size={18} /><span>{selected.length === markets.length ? `All ${markets.length} markets` : selected.length === 1 ? markets.find(market => market.id === selected[0])?.name : `${selected.length} markets selected`}</span><ChevronDown size={15} /></summary>
+    <div className="ex-market-menu"><input aria-label="Search markets" placeholder="Find your market…" value={query} onChange={event => setQuery(event.target.value)} /><div className="ex-market-tools"><button onClick={() => onChange(markets.map(market => market.id))}>Select all</button><button onClick={() => onChange([])}>Clear</button><span>{selected.length} selected</span></div>
+      <div className="ex-market-options">{markets.filter(market => `${market.name} ${market.id}`.toLowerCase().includes(query.toLowerCase())).map(market => <div key={market.id}><label><input type="checkbox" checked={selected.includes(market.id)} onChange={() => onChange(selected.includes(market.id) ? selected.filter(id => id !== market.id) : [...selected, market.id])} /><span>{market.id}</span>{market.name}</label><button aria-label={`Show only ${market.name}`} onClick={() => { onChange([market.id]); ref.current.open = false; }}>Only</button></div>)}</div>
+      <button className="ex-apply" onClick={() => { ref.current.open = false; ref.current.querySelector('summary').focus(); }}>Apply selection <Check size={17} /></button>
+    </div>
+  </details>;
+}
+
+function MetricCards({ model, period }) {
+  return <div className="ex-kpis">{metrics.map((metric, i) => {
+    const Icon = icons[i];
+    return <article className={`ex-kpi ex-kpi-${i}`} key={metric.key} style={{ '--metric-color': metric.color }}><div className="ex-kpi-top"><span>{metric.label}</span><Icon size={23} strokeWidth={1.7} /></div><strong className="ex-kpi-number" title={number(model.summary[metric.key])}>{compact(model.summary[metric.key], 2)}</strong><div className="ex-kpi-change"><Delta value={change(model.summary[metric.key], model.prior[metric.key])} /><span>vs. prior year</span></div><div className="ex-kpi-foot">{metric.kind === 'flow' ? 'PERIOD VOLUME' : 'MONTH-END BALANCE'}<span>{metric.kind === 'flow' ? period.short : MONTHS[period.end - 1]}</span></div></article>;
+  })}</div>;
+}
+
+function TransactionChart({ model, period, marketRows, selected, colorOf, compare }) {
+  const [trend, setTrend] = useState(true);
+  const [prior, setPrior] = useState(true);
+  const fitted = fittedTrend(model.series, 'Txn-count').map((row, i) => ({ ...row, previous: model.previous[i]?.['Txn-count'] }));
+  const max = model.series.filter(row => row['Txn-count'] != null).sort((a, b) => b['Txn-count'] - a['Txn-count'])[0];
+  return <section className="ex-panel ex-transactions" id="activity">
+    <div className="ex-panel-heading"><div><span className="ex-chart-eyebrow"><i style={{ background: metrics[0].color }} />01 / ACTIVITY</span><h2>Transaction momentum</h2><p>{compare ? 'Monthly volume, stacked by selected market' : 'Monthly volume with a clear view of direction'}</p></div><span className="ex-chart-badge">{compare ? 'STACKED BARS' : 'BARS + TREND'}</span></div>
+    <div className="ex-chart-controls">{compare ? <div className="ex-series-legend">{selected.map(market => <span key={market.id}><i style={{ background: colorOf(market.id) }} />{market.id}</span>)}</div> : <><span className="ex-current-legend"><i />{period.year}</span><label><input type="checkbox" checked={prior} onChange={event => setPrior(event.target.checked)} />{period.year - 1}</label><label><input type="checkbox" checked={trend} onChange={event => setTrend(event.target.checked)} /><span className="ex-dash" />Fitted trend</label></>}</div>
+    <div className="ex-chart ex-volume-chart"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={compare ? marketRows : fitted} margin={{ left: 2, right: 15, top: 16, bottom: 4 }} accessibilityLayer>
+      {grid}<XAxis dataKey="label" {...axis} dy={8} /><YAxis {...axis} tickFormatter={value => compact(value)} width={62} domain={[0, 'auto']} /><Tooltip content={<ChartTip />} cursor={{ fill: '#193d3006' }} />
+      {compare ? selected.map(market => <Bar key={market.id} dataKey={market.id} name={market.name} stackId="markets" fill={colorOf(market.id)} maxBarSize={42} isAnimationActive={false} />) : <>
+        {prior && <Bar dataKey="previous" name={`${period.year - 1} transactions`} fill="#dee7e2" radius={[4, 4, 0, 0]} maxBarSize={24} isAnimationActive={false} />}
+        <Bar dataKey="Txn-count" name={`${period.year} transactions`} fill="#21876e" radius={[5, 5, 0, 0]} maxBarSize={38} isAnimationActive={false} />
+        {trend && <Line type="linear" dataKey="fitted" name="Fitted trend (not a forecast)" stroke="#c18b3e" strokeWidth={3} strokeDasharray="6 5" dot={false} isAnimationActive={false} />}
+      </>}
+    </ComposedChart></ResponsiveContainer></div>
+    <div className="ex-chart-footer"><TrendingUp size={17} /><span>{max ? <><strong>{max.label}</strong> recorded the highest observed volume: <strong>{compact(max['Txn-count'], 2)}</strong>.</> : 'No complete monthly totals are available.'}</span><span className="ex-footer-note">{compare ? 'Each bar = monthly total' : 'Trend fitted to observed months only'}</span></div>
+  </section>;
+}
+
+function PlasticChart({ model, colorOf, period, onSelect }) {
+  const [expanded, setExpanded] = useState(false);
+  const slices = marketSlices(model.markets, 'Total Active Plastic', expanded ? 14 : 5);
+  const total = model.summary['Total Active Plastic'];
+  const valid = total != null && total > 0 && slices.length;
+  return <section className="ex-panel ex-plastic"><div className="ex-panel-heading"><div><span className="ex-chart-eyebrow"><i style={{ background: metrics[1].color }} />02 / PLASTIC</span><h2>Where the scale sits</h2><p>Active plastic by market · {period.last}</p></div><button className="ex-subtle-button" onClick={() => setExpanded(!expanded)}>{expanded ? 'Top 5 + others' : 'Show all'}</button></div>
+    {valid ? <><div className="ex-donut-wrap"><div className="ex-donut-center"><strong>{compact(total, 2)}</strong><span>ACTIVE PLASTIC</span></div><ResponsiveContainer width="100%" height="100%"><PieChart accessibilityLayer><Pie data={slices} dataKey="value" nameKey="name" innerRadius="68%" outerRadius="94%" startAngle={90} endAngle={-270} paddingAngle={2} cornerRadius={3} stroke="none" isAnimationActive={false}>{slices.map(slice => <Cell key={slice.id} fill={slice.id === 'others' ? '#dce5df' : colorOf(slice.id)} />)}</Pie><Tooltip content={<ChartTip />} /></PieChart></ResponsiveContainer></div>
+      <div className="ex-donut-legend">{slices.map(slice => <button key={slice.id} onClick={() => onSelect(slice.ids)} aria-label={`Explore ${slice.name}`}><i style={{ background: slice.id === 'others' ? '#dce5df' : colorOf(slice.id) }} /><span>{slice.name}</span><strong>{(slice.value / total * 100).toFixed(1)}%</strong><ArrowUpRight size={14} /></button>)}</div></> : <ChartEmpty>{total === 0 ? 'No active plastic in this selection.' : undefined}</ChartEmpty>}
+    <div className="ex-chart-footer"><Globe2 size={16} /><span>Share of selected markets. Click a legend row to explore.</span></div>
+  </section>;
+}
+
+function BasicChart({ model, period, onSelect }) {
+  const [all, setAll] = useState(false);
+  const sorted = [...model.markets].filter(market => market['Total Active Basic'] != null).sort((a, b) => b['Total Active Basic'] - a['Total Active Basic']);
+  const rows = sorted.slice(0, all ? 14 : 6);
+  const largest = rows[0];
+  return <section className="ex-panel ex-basic"><div className="ex-panel-heading"><div><span className="ex-chart-eyebrow"><i style={{ background: metrics[2].color }} />03 / BASIC</span><h2>Markets that move the needle</h2><p>Active basic balances · {period.last}</p></div><button className="ex-subtle-button" onClick={() => setAll(!all)}>{all ? 'Top 6' : 'All markets'}<ChevronDown size={14} /></button></div>
+    {rows.length ? <div className="ex-chart ex-basic-chart" style={{ height: Math.max(294, rows.length * 44 + 30) }}><ResponsiveContainer width="100%" height="100%"><BarChart layout="vertical" data={rows} margin={{ left: 0, right: 68, top: 10, bottom: 8 }} accessibilityLayer>
+      <CartesianGrid horizontal={false} stroke="#e9ece7" strokeDasharray="3 5" /><XAxis type="number" {...axis} tickFormatter={value => compact(value)} /><YAxis type="category" dataKey="id" width={44} {...axis} tick={{ fill: '#405c50', fontSize: 14, fontWeight: 600 }} /><Tooltip content={<ChartTip />} cursor={{ fill: '#c0873406' }} /><Bar dataKey="Total Active Basic" name="Active basic" fill="#d5ae6e" radius={[0, 5, 5, 0]} maxBarSize={25} isAnimationActive={false}>{rows.map((row, i) => <Cell key={row.id} fill={i === 0 ? '#b98434' : i === 1 ? '#d2a158' : '#e5cba1'} />)}<LabelList dataKey="Total Active Basic" position="right" formatter={value => compact(value, 2)} fill="#6d634f" fontSize={13} offset={10} /></Bar></BarChart></ResponsiveContainer></div> : <ChartEmpty />}
+    <div className="ex-ranking-key">{rows.map(row => <button key={row.id} onClick={() => onSelect([row.id])}><b>{row.id}</b>{row.name}<ArrowUpRight size={12} /></button>)}</div>
+    <div className="ex-chart-footer"><WalletCards size={17} /><span>{largest ? <><strong>{largest.name}</strong> has the largest basic balance in this selection.</> : 'No market balances are available.'}</span></div>
+  </section>;
+}
+
+function AccountsChart({ model, period }) {
+  const [prior, setPrior] = useState(true);
+  const rows = model.series.map((row, i) => ({ ...row, previous: model.previous[i]?.['Active Accounts'] }));
+  const start = rows[0]?.['Active Accounts'];
+  const last = rows.at(-1)?.['Active Accounts'];
+  const delta = start != null && last != null ? last - start : null;
+  return <section className="ex-panel ex-accounts"><div className="ex-panel-heading"><div><span className="ex-chart-eyebrow"><i style={{ background: metrics[3].color }} />04 / ACCOUNTS</span><h2>The account growth story</h2><p>Monthly active account snapshots</p></div><label className="ex-check"><input type="checkbox" checked={prior} onChange={event => setPrior(event.target.checked)} />Prior year</label></div>
+    <div className="ex-account-headline"><strong>{compact(last, 2)}</strong><span>at {period.last}</span><Delta value={change(last, model.prior['Active Accounts'])} /></div>
+    <div className="ex-chart ex-accounts-chart"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={rows} margin={{ left: 0, right: 20, top: 10, bottom: 5 }} accessibilityLayer><defs><linearGradient id="ex-accounts-gradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#a583b6" stopOpacity={.32} /><stop offset="100%" stopColor="#a583b6" stopOpacity={.015} /></linearGradient></defs>{grid}<XAxis dataKey="label" {...axis} dy={8} /><YAxis {...axis} width={60} tickFormatter={value => compact(value)} domain={[0, 'auto']} /><Tooltip content={<ChartTip />} />{prior && <Line type="monotone" dataKey="previous" name={`${period.year - 1} accounts`} stroke="#c9bfd1" strokeWidth={2} strokeDasharray="5 5" dot={false} isAnimationActive={false} />}<Area type="monotone" dataKey="Active Accounts" name={`${period.year} accounts`} stroke="#9670ab" fill="url(#ex-accounts-gradient)" strokeWidth={3} dot={{ r: 3, fill: '#9670ab', stroke: '#fff', strokeWidth: 2 }} activeDot={{ r: 6 }} isAnimationActive={false} /></ComposedChart></ResponsiveContainer></div>
+    <div className="ex-chart-footer"><Users size={17} /><span>{rows.length === 1 ? 'One month selected. Expand the period to see the trend.' : delta == null ? 'Account movement is unavailable for this selection.' : <><strong>{delta >= 0 ? '+' : '−'}{compact(Math.abs(delta), 2)}</strong> accounts from {MONTHS[period.start - 1]} to {MONTHS[period.end - 1]}.</>}</span><span className="ex-footer-note">Balances are never summed over time</span></div>
+  </section>;
+}
+
+function CombinedChart({ model, period }) {
+  const [indexed, setIndexed] = useState(false);
+  const [visible, setVisible] = useState(metrics.map(metric => metric.key));
+  const growth = metrics.map(metric => ({ ...metric, growth: change(model.summary[metric.key], model.prior[metric.key]) }));
+  const indexedRows = model.series.map(row => ({ label: row.label, ...Object.fromEntries(metrics.map(metric => [metric.key, model.series[0]?.[metric.key] > 0 && row[metric.key] != null ? row[metric.key] / model.series[0][metric.key] * 100 : null])) }));
+  const best = [...growth].filter(metric => metric.growth != null).sort((a, b) => b.growth - a.growth)[0];
+  return <section className="ex-panel ex-combined" id="combined"><div className="ex-panel-heading"><div><span className="ex-chart-eyebrow"><i />THE COMBINED VIEW</span><h2>Four indicators. One perspective.</h2><p>{indexed ? `Monthly movement on a shared baseline · ${MONTHS[period.start - 1]} = 100` : `Like-for-like growth against ${period.year - 1} · all selected markets`}</p></div><div className="ex-segments"><button aria-pressed={!indexed} className={!indexed ? 'active' : ''} onClick={() => setIndexed(false)}>YoY growth</button><button aria-pressed={indexed} className={indexed ? 'active' : ''} onClick={() => setIndexed(true)}>Indexed trends</button></div></div>
+    <div className="ex-combined-body"><div className="ex-combined-chart-area">{indexed ? <><div className="ex-index-legend">{metrics.map(metric => <button key={metric.key} aria-pressed={visible.includes(metric.key)} onClick={() => setVisible(visible.includes(metric.key) ? visible.filter(key => key !== metric.key) : [...visible, metric.key])} style={{ opacity: visible.includes(metric.key) ? 1 : .35 }}><i style={{ background: metric.color }} />{metric.short}</button>)}</div><div className="ex-chart ex-index-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={indexedRows} margin={{ left: 5, right: 15, top: 15, bottom: 5 }} accessibilityLayer>{grid}<XAxis dataKey="label" {...axis} /><YAxis {...axis} width={45} domain={['auto', 'auto']} tickFormatter={value => Number(value).toFixed(0)} /><ReferenceLine y={100} stroke="#bccfc5" strokeDasharray="4 4" /><Tooltip content={<ChartTip suffix=" pts" />} />{metrics.filter(metric => visible.includes(metric.key)).map(metric => <Line key={metric.key} type="monotone" dataKey={metric.key} name={metric.label} stroke={metric.color} strokeWidth={3} dot={{ r: 3, stroke: '#fff', strokeWidth: 1 }} isAnimationActive={false} />)}</LineChart></ResponsiveContainer></div></> : growth.every(row => row.growth == null) ? <ChartEmpty>No matched prior-year baseline. Select a later year, or switch to indexed trends.</ChartEmpty> : <div className="ex-chart ex-growth-chart"><ResponsiveContainer width="100%" height="100%"><BarChart data={growth} layout="vertical" margin={{ left: 0, right: 65, top: 20, bottom: 8 }} accessibilityLayer><CartesianGrid horizontal={false} stroke="#e5ebe7" strokeDasharray="3 5" /><XAxis type="number" {...axis} tickFormatter={value => `${value}%`} /><YAxis type="category" dataKey="short" {...axis} width={100} tick={{ fill: '#4d6359', fontSize: 13 }} /><ReferenceLine x={0} stroke="#a8b9b0" /><Tooltip content={<ChartTip suffix="%" />} /><Bar dataKey="growth" name="Year-over-year growth" maxBarSize={29} radius={[4, 4, 4, 4]} isAnimationActive={false}>{growth.map(row => <Cell key={row.key} fill={row.color} />)}<LabelList dataKey="growth" formatter={value => percent(value)} position="right" fill="#3c5146" fontSize={14} fontWeight={600} offset={10} /></Bar></BarChart></ResponsiveContainer></div>}</div>
+      <aside className="ex-combined-note"><span><Sparkles size={18} />READING THE SIGNAL</span><h3>{best ? `${best.short} ${best.growth >= 0 ? 'lead growth' : 'show the smallest decline'}.` : 'Start with a shared baseline.'}</h3><p>{best ? <>At <strong>{percent(best.growth)}</strong> year over year, this is the strongest relative change among the four indicators.</> : 'Prior-year growth needs complete history for the same markets and months.'}</p><div><strong>Consistent comparisons</strong><p>Transactions use the period total. Cards and accounts use the last selected month. Indexed trends compare each month with the first month of your selection.</p></div></aside>
+    </div></section>;
+}
+
+function Scorecard({ model, period, onSelect }) {
+  const [sort, setSort] = useState('Txn-count');
+  const [query, setQuery] = useState('');
+  const rows = [...model.markets].filter(market => market.name.toLowerCase().includes(query.toLowerCase())).sort((a, b) => (b[sort] ?? -Infinity) - (a[sort] ?? -Infinity));
+  const maxima = Object.fromEntries(metrics.map(metric => [metric.key, Math.max(0, ...model.markets.map(market => market[metric.key] || 0))]));
+  return <section className="ex-panel ex-scorecard" id="scorecard"><div className="ex-panel-heading"><div><span className="ex-chart-eyebrow"><i />THE MARKET SCORECARD</span><h2>See how every market stacks up.</h2><p>Transactions: {period.range} · balances: {period.last}</p></div><div className="ex-score-controls"><input aria-label="Search scorecard" placeholder="Search a market…" value={query} onChange={event => setQuery(event.target.value)} /><label><span>Rank by</span><select value={sort} onChange={event => setSort(event.target.value)} aria-label="Rank markets by metric">{metrics.map(metric => <option key={metric.key} value={metric.key}>{metric.short}</option>)}</select></label></div></div>
+    <div className="ex-table-scroll"><table><thead><tr><th>Market</th>{metrics.map(metric => <th key={metric.key}>{metric.short}</th>)}<th>Txn YoY</th></tr></thead><tbody>{rows.map((market, i) => <tr key={market.id}><td><button onClick={() => onSelect([market.id])}><span className="ex-rank">{String(i + 1).padStart(2, '0')}</span><span className="ex-market-code">{market.id}</span><strong>{market.name}</strong><ArrowUpRight size={15} /></button></td>{metrics.map(metric => <td key={metric.key} title={number(market[metric.key])}><div className="ex-table-value"><span>{compact(market[metric.key], 2)}</span><i style={{ width: `${maxima[metric.key] ? market[metric.key] / maxima[metric.key] * 100 : 0}%`, background: metric.color }} /></div></td>)}<td><Delta value={market.growth} /></td></tr>)}</tbody></table>{!rows.length && <div className="ex-chart-empty">No markets match this search.</div>}</div><div className="ex-chart-footer"><Maximize2 size={16} /><span>Click any market for a focused view. In-cell bars compare scale within each metric.</span></div></section>;
+}
+
+export default function Executive() {
+  const [dataset, setDataset] = useState(null);
+  const [metadata, setMetadata] = useState(null);
+  const [error, setError] = useState('');
+  const [filters, setFilters] = useState({ year: 2026, start: 1, end: 9, ids: [], compare: false });
+  const [toast, setToast] = useState('');
+  const [reload, setReload] = useState(0);
+  const help = useRef(null);
+
+  useEffect(() => {
+    let active = true;
+    setError('');
+    (async () => {
+      try {
+        const [csv, meta] = await Promise.all([fetch('./data/markets.csv', { cache: 'no-cache' }), fetch('./data/metadata.json', { cache: 'no-cache' })]);
+        if (!csv.ok || !meta.ok) throw new Error('The monthly dataset could not be loaded. Please retry.');
+        const data = parseData(await csv.text());
+        const info = await meta.json();
+        if (!['synthetic', 'production'].includes(info.kind) || info.through !== periodKey(data.latest.year, data.latest.month)) throw new Error('The data and release metadata do not match. Publish both files together.');
+        const params = new URLSearchParams(window.location.search);
+        const inputYear = Number(params.get('year'));
+        const year = Number.isInteger(inputYear) && inputYear >= 2019 && inputYear <= data.latest.year ? inputYear : data.latest.year;
+        const max = year === data.latest.year ? data.latest.month : 12;
+        const clamp = (value, fallback) => Number.isFinite(Number(value)) && Number(value) > 0 ? Math.max(1, Math.min(max, Math.floor(Number(value)))) : fallback;
+        const start = clamp(params.get('from'), 1);
+        const end = Math.max(start, clamp(params.get('to'), max));
+        const ids = [...new Set((params.get('markets') || '').split(',').filter(id => data.markets.some(market => market.id === id)))];
+        if (active) { setDataset(data); setMetadata(info); setFilters({ year, start, end, ids: ids.length ? ids : data.markets.map(market => market.id), compare: params.get('compare') === 'true' }); }
+      } catch (issue) { if (active) setError(issue.message); }
+    })();
+    return () => { active = false; };
+  }, [reload]);
+
+  useEffect(() => {
+    if (!dataset) return;
+    const params = new URLSearchParams({ year: String(filters.year), from: String(filters.start), to: String(filters.end), markets: filters.ids.join(','), compare: String(filters.compare) });
+    window.history.replaceState(null, '', `${window.location.pathname}?${params}`);
+  }, [dataset, filters]);
+  useEffect(() => { if (toast) { const timer = setTimeout(() => setToast(''), 3500); return () => clearTimeout(timer); } }, [toast]);
+
+  const { ids, year, start, end, compare } = filters;
+  const model = useMemo(() => dataset ? selectionData(dataset, ids, year, start, end) : null, [dataset, ids, year, start, end]);
+  const marketRows = useMemo(() => {
+    if (!dataset || !model) return [];
+    const individual = ids.map(id => ({ id, rows: monthlySeries(dataset.rows, [id], year, start, end) }));
+    return model.series.map((row, i) => ({ label: row.label, ...Object.fromEntries(individual.map(market => [market.id, row.complete ? market.rows[i]['Txn-count'] : null])) }));
+  }, [dataset, model, ids, year, start, end]);
+  const marketColorOrder = useMemo(() => dataset ? dataset.rows
+    .filter(row => row.Year === dataset.latest.year && row.Month === dataset.latest.month)
+    .sort((a, b) => b['Txn-count'] - a['Txn-count'])
+    .map(row => row['Market-id']) : [], [dataset]);
+  const period = { year, start, end, short: `${MONTHS[start - 1]}${start === end ? '' : `–${MONTHS[end - 1]}`}`, range: `${MONTHS[start - 1]}${start === end ? '' : `–${MONTHS[end - 1]}`} ${year}`, last: `${MONTHS[end - 1]} ${year}` };
+  const colorOf = id => MARKET_COLORS[Math.max(0, marketColorOrder.indexOf(id)) % MARKET_COLORS.length];
+  const selected = dataset?.markets.filter(market => ids.includes(market.id)) || [];
+  const maxMonth = year === dataset?.latest.year ? dataset.latest.month : 12;
+  const scope = ids.length === dataset?.markets.length ? 'Global portfolio' : ids.length === 1 ? selected[0]?.name : `${ids.length} selected markets`;
+  const growth = model ? change(model.summary['Txn-count'], model.prior['Txn-count']) : null;
+  const leader = model ? [...model.markets].filter(market => market.growth != null).sort((a, b) => b.growth - a.growth)[0] : null;
+  const volumeLeader = model ? [...model.markets].filter(market => market.contribution != null).sort((a, b) => b.contribution - a.contribution)[0] : null;
+  function choose(ids) { setFilters(current => ({ ...current, ids })); }
+  function reset() { setFilters({ year: dataset.latest.year, start: 1, end: dataset.latest.month, ids: dataset.markets.map(market => market.id), compare: false }); }
+  function compareMarkets() {
+    setFilters(current => ({ ...current, compare: !current.compare, ids: !current.compare && current.ids.length === dataset.markets.length ? [...model.markets].sort((a, b) => (b['Txn-count'] || 0) - (a['Txn-count'] || 0)).slice(0, 4).map(market => market.id) : current.ids }));
+  }
+  function exportCSV() {
+    const rows = dataset.rows.filter(row => ids.includes(row['Market-id']) && row.Year === year && row.Month >= start && row.Month <= end);
+    const url = URL.createObjectURL(new Blob([toCSV(rows)], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a'); link.href = url; link.download = `atlas-executive-${year}-${start}-${end}.csv`; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000); setToast('Your selected data has been exported.');
+  }
+  async function share() { try { await navigator.clipboard.writeText(window.location.href); setToast('Link copied with your market and period filters.'); } catch { setToast('Copy the address from your browser to share this view.'); } }
+
+  return <div className="executive-app"><a className="ex-skip" href="#ex-main">Skip to dashboard</a>
+    <header className="ex-top"><div className="ex-top-inner"><a href="./executive.html" className="ex-brand"><span className="ex-brand-symbol"><BarChart3 size={27} /></span><strong>atlas<span>.</span></strong><span className="ex-brand-divider" /><span className="ex-edition">EXECUTIVE<br /><b>MARKET INTELLIGENCE</b></span></a><div className="ex-top-actions"><a href="./index.html"><LayoutDashboard size={16} />Original dashboard<ArrowUpRight size={14} /></a><button onClick={() => help.current.showModal()} aria-label="Open metric definitions"><CircleHelp size={20} /></button><span className="ex-avatar">EX</span></div></div></header>
+    <main id="ex-main" className="ex-main"><div className="ex-heading"><div><div className="ex-eyebrow"><span />THE EXECUTIVE BRIEF</div><h1>Portfolio performance<span>.</span></h1><p>The scale. The momentum. The markets behind it.</p></div><div className="ex-heading-right"><span className="ex-data-badge">{metadata?.kind === 'synthetic' ? 'SYNTHETIC DEMO DATA' : dataset ? 'MONTHLY REPORTING' : 'CONNECTING TO DATA'}</span>{dataset && <span className="ex-asof">Data through <strong>{MONTHS[dataset.latest.month - 1]} {dataset.latest.year}</strong></span>}</div></div>
+      {error ? <div className="ex-error" role="alert"><h2>We couldn’t load this release.</h2><p>{error}</p><button onClick={() => setReload(value => value + 1)}>Try again</button></div> : !dataset ? <div className="ex-loading" role="status"><span />Preparing your executive brief…</div> : <>
+        <section className="ex-filters" aria-label="Executive dashboard filters"><div className="ex-filter-main"><MarketFilter markets={dataset.markets} selected={ids} onChange={choose} /><label className="ex-year"><CalendarDays size={18} /><select aria-label="Reporting year" value={year} onChange={event => { const next = Number(event.target.value); const max = next === dataset.latest.year ? dataset.latest.month : 12; setFilters(current => ({ ...current, year: next, start: Math.min(current.start, max), end: Math.min(current.end, max) })); }}>{Array.from({ length: dataset.latest.year - 2018 }, (_, i) => dataset.latest.year - i).map(year => <option key={year}>{year}</option>)}</select></label><div className="ex-months"><select aria-label="From month" value={start} onChange={event => { const next = Number(event.target.value); setFilters(current => ({ ...current, start: next, end: Math.max(next, current.end) })); }}>{MONTHS.slice(0, maxMonth).map((month, i) => <option value={i + 1} key={month}>{month}</option>)}</select><span>to</span><select aria-label="Through month" value={end} onChange={event => setFilters(current => ({ ...current, end: Number(event.target.value) }))}>{MONTHS.slice(start - 1, maxMonth).map((month, i) => <option value={i + start} key={month}>{month}</option>)}</select></div><button className={`ex-compare-button ${compare ? 'active' : ''}`} aria-pressed={compare} onClick={compareMarkets}><BarChart3 size={17} />Compare markets</button><button className="ex-reset" onClick={reset} aria-label="Reset all filters" title="Reset filters"><RotateCcw size={17} /></button></div><div className="ex-filter-actions"><button onClick={share} disabled={!ids.length} aria-label="Copy filtered dashboard link"><Link2 size={18} /></button><button onClick={exportCSV} disabled={!ids.length}><Download size={17} /><span>Export CSV</span></button></div></section>
+        <div className="ex-context"><div><Globe2 size={15} /><strong>{scope}</strong><span>/</span>{period.range}</div><div><span className="ex-coverage-dot" />{dataset.missing.length ? `${dataset.missing.length} missing market-month records` : 'Complete monthly coverage'}<button onClick={() => help.current.showModal()}>About these numbers <CircleHelp size={13} /></button></div></div>
+        {dataset.missing.length > 0 && <div className="ex-data-warning">Incomplete observations are shown as unavailable. Selected-market totals are not filled with zeros.</div>}
+        {!ids.length ? <div className="ex-no-markets"><Globe2 size={35} /><h2>Choose a market to begin.</h2><p>Select one market for detail or several for comparison.</p><button onClick={reset}>Show the full portfolio <ArrowRight size={17} /></button></div> : <>
+          <MetricCards model={model} period={period} />
+          <section className="ex-readout"><div className="ex-readout-label"><Sparkles size={19} /><span>THE<br /><b>READOUT</b></span></div><p>{growth == null ? <>Your period in focus. <strong>{period.range}</strong> has no complete matched prior-year baseline.</> : <>Transaction volume is <strong>{Math.abs(growth).toFixed(1)}% {growth >= 0 ? 'ahead of' : 'below'} last year.</strong>{leader ? <> {leader.name} {leader.growth >= 0 ? 'leads market growth' : 'has the smallest decline'} at <strong>{percent(leader.growth)}</strong>.</> : ''}</>}</p>{volumeLeader && <div className="ex-readout-side"><strong>{volumeLeader.contribution.toFixed(1)}%</strong><span>of transactions from<br /><b>{volumeLeader.name}</b></span></div>}</section>
+          {compare && <div className="ex-selection-chips">{selected.map(market => <button key={market.id} onClick={() => choose(ids.filter(id => id !== market.id))} aria-label={`Remove ${market.name}`}><i style={{ background: colorOf(market.id) }} />{market.name}<X size={14} /></button>)}</div>}
+          <div className="ex-section-intro"><div><span>PERFORMANCE EXPLORER</span><h2>A different lens on every metric.</h2></div><a href="#combined">See the combined view <ArrowRight size={16} /></a></div>
+          <div className="ex-chart-grid"><TransactionChart model={model} period={period} marketRows={marketRows} selected={selected} colorOf={colorOf} compare={compare} /><PlasticChart model={model} period={period} colorOf={colorOf} onSelect={choose} /><BasicChart model={model} period={period} onSelect={choose} /><AccountsChart model={model} period={period} /></div>
+          <CombinedChart model={model} period={period} /><Scorecard model={model} period={period} onSelect={choose} />
+          <div className="ex-final-actions"><span><Check size={16} />One dataset. Consistent definitions. Clear comparisons.</span><button onClick={() => window.print()}>Print executive brief <Download size={16} /></button></div>
+        </>}
+      </>}
+      <footer className="ex-page-footer"><span className="ex-footer-brand">atlas<span>.</span></span><span>Market intelligence, with perspective.</span><a href="./index.html">Open the original dashboard <ArrowUpRight size={15} /></a></footer>
+    </main>
+    <dialog className="ex-help" ref={help}><div><span className="ex-chart-eyebrow">THE METHODOLOGY</span><button aria-label="Close metric definitions" onClick={() => help.current.close()}><X size={23} /></button></div><h2>Good decisions start with clear definitions.</h2><dl><dt>Transactions are period totals.</dt><dd>We sum transactions for the selected markets and months. Bar charts show individual monthly totals.</dd><dt>Cards and accounts are snapshots.</dt><dd>KPI cards, market rankings, and the donut use the last selected month. Monthly snapshots are never summed across time.</dd><dt>Growth is like-for-like.</dt><dd>Year-over-year compares the same markets and months in the previous year. Missing or zero baselines show no percentage. Indexed trends start at 100 in the first selected month.</dd><dt>Trendlines describe history.</dt><dd>The dashed transaction trend is a linear least-squares fit across the selected months. It is not a forecast. It requires at least two complete months.</dd><dt>Market share has a defined denominator.</dt><dd>The donut is each market’s active plastic divided by the total active plastic for the selected markets, in the same month. Other markets are grouped for readability.</dd></dl><p className="ex-help-note">{metadata?.kind === 'synthetic' ? 'This release is synthetic demonstration data, including an illustrative full-month value for the current month.' : 'Source: published monthly market dataset.'} Confirm source definitions of “plastic,” “basic,” and “active” with the data owner.</p><a href="./index.html?view=data">Open the full data guide <ArrowUpRight size={16} /></a></dialog>
+    {toast && <div className="ex-toast" role="status"><Check size={18} />{toast}</div>}
+  </div>;
+}

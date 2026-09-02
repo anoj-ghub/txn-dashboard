@@ -4,6 +4,16 @@ A static, interactive leadership dashboard for 14 markets. React + Vite + Rechar
 
 Dashboard URL after Pages is enabled and the first deployment succeeds: **https://anoj-ghub.github.io/txn-dashboard/**
 
+## Executive view — second design
+
+**[Open Atlas Executive](https://anoj-ghub.github.io/txn-dashboard/executive.html)**
+
+The second design is a separate entry point. The original dashboard, styles, and behavior remain unchanged at the root URL. Both views read the same CSV and are deployed by the same workflow.
+
+The executive view uses larger typography and an emerald-and-cream theme, monthly transaction bars with a descriptive fitted trendline, an active-plastic market-share donut, ranked horizontal bars for active basic, and an active-account area/trend chart. Its combined view switches between like-for-like YoY growth bars and indexed monthly trends. Market comparison switches transaction bars into market stacks; donut legends, ranking labels, and the market scorecard drill into a selection. Every chart follows the selected markets and timeframe. Definitions, filtered CSV export, shareable links, and a printable brief are included.
+
+The transaction trendline is an ordinary least-squares fit within the observed period, not a forecast. It is omitted for fewer than two months or an incomplete selected period. The donut groups smaller markets into a labelled “Other markets” slice without dropping their values from the denominator.
+
 ## What is included
 
 - Portfolio overview, individual-market drilldown, and multi-market comparison.

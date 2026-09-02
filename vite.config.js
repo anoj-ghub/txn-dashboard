@@ -4,5 +4,8 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   base: './',
-  build: { chunkSizeWarningLimit: 700 },
+  build: {
+    chunkSizeWarningLimit: 700,
+    rollupOptions: { input: { classic: 'index.html', executive: 'executive.html' } },
+  },
 });

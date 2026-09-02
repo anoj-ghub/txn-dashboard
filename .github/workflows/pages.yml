@@ -11,6 +11,7 @@ on:
       - 'package*.json'
       - 'vite.config.js'
       - 'index.html'
+      - 'executive.html'
       - '.github/workflows/**'
   pull_request:
     branches: [main]
