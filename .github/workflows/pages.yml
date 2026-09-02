@@ -1,0 +1,90 @@
+name: Validate and publish dashboard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'scripts/**'
+      - 'tests/**'
+      - 'package*.json'
+      - 'vite.config.js'
+      - 'index.html'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Test calculations and CSV validation
+        run: npm test
+      - name: Validate data and build static files
+        run: npm run build
+      - name: Add release summary
+        run: |
+          echo '## Atlas dataset release' >> "$GITHUB_STEP_SUMMARY"
+          node scripts/validate-data.mjs >> "$GITHUB_STEP_SUMMARY"
+      - name: Configure Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v5
+      - name: Upload static website
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish dashboard
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  notify:
+    # Explicit opt-in only. No email is sent until the owner configures this variable and secrets.
+    if: github.event_name != 'pull_request' && vars.EMAIL_ENABLED == 'true'
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out deployed dataset
+        uses: actions/checkout@v6
+      - name: Email the latest update
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          PAGE_URL: ${{ needs.deploy.outputs.page_url }}
+        run: python3 scripts/notify.py
