@@ -53,6 +53,44 @@ test('incomplete later-year baselines do not truncate the selected reporting per
   assert.equal(metricComparisons(model, 'Txn-count')[0].growth, null);
 });
 
+test('December selection retains monthly gaps but matches partial-year totals to the reported cutoff', () => {
+  const data = fixture();
+  const model = executiveComparison(data, ['US'], 2026, 1, 12, 'all');
+  const reported = executiveComparison(data, ['US'], 2026, 1, 2, 'all');
+  assert.equal(model.reportedEnd, 2);
+  assert.equal(model.hasReportedMonths, true);
+  assert.deepEqual(model.summary, reported.summary);
+  assert.deepEqual(model.comparisons.map(row => row.summary), reported.comparisons.map(row => row.summary));
+  assert.equal(model.series.length, 12);
+  assert.equal(model.reportedSeries.length, 2);
+  assert.equal(model.series[0]['Txn-count'], 810);
+  assert.equal(model.series[1]['Txn-count'], 820);
+  assert.equal(model.summary['Txn-count'], 1630);
+  assert.equal(model.summary['Active Accounts'], 82);
+  assert.ok(model.series.slice(2).every(row => row.pending && row['Txn-count'] === null && row['Active Accounts'] === null));
+});
+
+test('selecting only unreported months does not reuse earlier balances or produce comparisons', () => {
+  const model = executiveComparison(fixture(), ['US'], 2026, 10, 12, '2021');
+  assert.equal(model.hasReportedMonths, false);
+  assert.equal(model.series.length, 3);
+  assert.equal(model.reportedSeries.length, 0);
+  assert.ok(Object.values(model.summary).every(value => value === null));
+  assert.ok(Object.values(model.prior).every(value => value === null));
+  assert.equal(metricComparisons(model, 'Txn-count')[0].growth, null);
+});
+
+test('partial-year reporting still suppresses missing records within the reported period', () => {
+  const data = fixture();
+  data.rows = data.rows.filter(row => !(row.Year === 2026 && row.Month === 1 && row['Market-id'] === 'US'));
+  const model = executiveComparison(data, ['US', 'CA'], 2026, 1, 12, '2021');
+  assert.equal(model.summary['Txn-count'], null);
+  assert.equal(model.summary['Active Accounts'], 164);
+  assert.equal(model.series[0].pending, false);
+  assert.equal(model.series[0].complete, false);
+  assert.equal(model.series[2].pending, true);
+});
+
 test('zero and missing baselines are omitted from ranges, with unavailable counts retained', () => {
   const result = comparisonExtent([{ year: 2019, growth: -10 }, { year: 2020, growth: null }, { year: 2021, growth: 30 }]);
   assert.equal(result.min, -10); assert.equal(result.max, 30); assert.equal(result.missing, 1);

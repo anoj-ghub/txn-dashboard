@@ -16,6 +16,10 @@ The executive view uses larger typography and an emerald-and-cream theme, monthl
 
 The executive readout includes a separate point for each of the four metrics, with its value, comparison change, and strongest market change (single baseline) or the count of higher/lower/unchanged comparisons (all previous years). Transactions use period totals; the other three metrics use the last selected month's balance. Share links preserve the comparison choice, and **Export CSV** includes the reporting and comparison years for the selected markets and months. Indexed trends, the market-share donut, and active-basic rankings describe the reporting year; use the historical metric tabs to compare card/account balances across years.
 
+Month selectors include **January through December** in every year. For the latest year, a partial-year banner states the dataset cutoff. When the selected range extends beyond that cutoff, KPI totals and year-wise comparison summaries use only the reported portion of the selection, matched to the same months in every baseline year; balances use the last reported month in that range. Selecting only unreported months produces unavailable values. Missing records within the reported period still suppress incomplete aggregates. Monthly charts retain the full selected range, with unreported months shown as gaps.
+
+Use **Year-wise comparison / Month-wise within year** in the comparison panel to switch between newest-first year comparisons and chronological monthly bars for the selected year. Each metric has its own chart tab; the monthly view also shows all four values in a table and labels future months **Not yet reported**. The month range and market filters apply to both views, and shared links preserve the toggle. The other dashboard panels retain their selected year-comparison context.
+
 The transaction trendline is an ordinary least-squares fit within the observed period, not a forecast. It is omitted for fewer than two months or an incomplete selected period. The donut groups smaller markets into a labelled “Other markets” slice without dropping their values from the denominator.
 
 ## What is included

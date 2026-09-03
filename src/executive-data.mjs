@@ -9,15 +9,17 @@ export function normalizeComparison(value, year, latestYear) {
 export function executiveComparison(dataset, ids, year, start, end, requested = 'prior') {
   const mode = normalizeComparison(requested, year, dataset.latest.year);
   const years = mode === 'all' ? Array.from({ length: year - 2019 }, (_, i) => 2019 + i) : mode === 'prior' ? year > 2019 ? [year - 1] : [] : [Number(mode)];
-  const model = selectionData(dataset, ids, year, start, end);
+  const reportedEnd = year === dataset.latest.year ? Math.min(end, dataset.latest.month) : end;
+  const model = selectionData(dataset, ids, year, start, reportedEnd);
+  const series = monthlySeries(dataset.rows, ids, year, start, end).map(row => ({ ...row, pending: year === dataset.latest.year && row.month > dataset.latest.month }));
   const comparisons = years.map(referenceYear => {
     const series = monthlySeries(dataset.rows, ids, referenceYear, start, end);
-    const markets = dataset.markets.filter(market => ids.includes(market.id)).map(market => ({ ...market, ...summarize(monthlySeries(dataset.rows, [market.id], referenceYear, start, end)) }));
-    return { year: referenceYear, series, summary: summarize(series), markets };
+    const markets = dataset.markets.filter(market => ids.includes(market.id)).map(market => ({ ...market, ...summarize(monthlySeries(dataset.rows, [market.id], referenceYear, start, reportedEnd)) }));
+    return { year: referenceYear, series, summary: summarize(series.filter(row => row.month <= reportedEnd)), markets };
   });
   const unavailable = Object.fromEntries(METRICS.map(metric => [metric.key, null]));
   return {
-    ...model, mode, comparisons,
+    ...model, series, reportedSeries: model.series, reportedEnd, hasReportedMonths: reportedEnd >= start, mode, comparisons,
     prior: mode !== 'all' && comparisons[0] ? comparisons[0].summary : unavailable,
     previous: mode !== 'all' && comparisons[0] ? comparisons[0].series : [],
     markets: model.markets.map(market => ({ ...market, growth: mode !== 'all' ? change(market['Txn-count'], comparisons[0]?.markets.find(item => item.id === market.id)?.['Txn-count'] ?? null) : null })),
