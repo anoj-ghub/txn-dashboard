@@ -1,6 +1,74 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fittedTrend, marketSlices } from '../src/executive-data.mjs';
+import { fittedTrend, marketSlices, executiveComparison, metricComparisons, comparisonExtent, normalizeComparison } from '../src/executive-data.mjs';
+
+const fixture = () => ({
+  latest: { year: 2026, month: 2 },
+  markets: [{ id: 'US', name: 'United States' }, { id: 'CA', name: 'Canada' }],
+  rows: Array.from({ length: 8 }, (_, index) => 2019 + index).flatMap(year => [1, 2].flatMap(month => ['US', 'CA'].map(id => ({
+    'Market-id': id, 'Market-name': id === 'US' ? 'United States' : 'Canada', Year: year, Month: month,
+    'Txn-count': (year - 2018) * 100 + month * 10 + (id === 'CA' ? 1000 : 0),
+    'Total Active Plastic': (year - 2018) * 30 + month,
+    'Total Active Basic': (year - 2018) * 20 + month,
+    'Active Accounts': (year - 2018) * 10 + month,
+  })))),
+});
+
+test('chosen baseline year uses matched months and markets for all four metrics', () => {
+  const model = executiveComparison(fixture(), ['US'], 2026, 2, 2, '2021');
+  assert.deepEqual(model.comparisons.map(reference => reference.year), [2021]);
+  assert.equal(model.summary['Txn-count'], 820);
+  assert.equal(model.prior['Txn-count'], 320);
+  assert.equal(model.prior['Total Active Plastic'], 92);
+  assert.equal(model.prior['Total Active Basic'], 62);
+  assert.equal(model.prior['Active Accounts'], 32);
+  assert.equal(model.markets[0].growth, (820 / 320 - 1) * 100);
+});
+
+test('all previous years stay separate and exclude the reporting year and later years', () => {
+  const model = executiveComparison(fixture(), ['US', 'CA'], 2022, 1, 2, 'all');
+  assert.deepEqual(model.comparisons.map(reference => reference.year), [2019, 2020, 2021]);
+  assert.equal(model.comparisons[0].summary['Txn-count'], 2460);
+  assert.equal(model.comparisons[0].summary['Active Accounts'], 24);
+  assert.equal(model.prior['Txn-count'], null);
+  const changes = metricComparisons(model, 'Active Accounts');
+  assert.equal(changes.length, 3);
+  assert.equal(changes[0].growth, (84 / 24 - 1) * 100);
+  assert.equal(changes[2].growth, (84 / 64 - 1) * 100);
+});
+
+test('metric-specific comparisons never reuse transaction growth for card/account readouts', () => {
+  const model = executiveComparison(fixture(), ['US'], 2026, 1, 2, '2021');
+  assert.notEqual(metricComparisons(model, 'Txn-count')[0].growth, metricComparisons(model, 'Active Accounts')[0].growth);
+  assert.equal(metricComparisons(model, 'Total Active Basic', 'US')[0].growth, (162 / 62 - 1) * 100);
+});
+
+test('incomplete later-year baselines do not truncate the selected reporting period', () => {
+  const data = fixture();
+  data.rows = data.rows.filter(row => !(row.Year === 2026 && row.Month === 2));
+  const model = executiveComparison(data, ['US'], 2021, 1, 2, '2026');
+  assert.equal(model.summary['Txn-count'], 630);
+  assert.equal(model.comparisons[0].summary['Txn-count'], null);
+  assert.equal(model.comparisons[0].summary['Active Accounts'], null);
+  assert.equal(metricComparisons(model, 'Txn-count')[0].growth, null);
+});
+
+test('zero and missing baselines are omitted from ranges, with unavailable counts retained', () => {
+  const result = comparisonExtent([{ year: 2019, growth: -10 }, { year: 2020, growth: null }, { year: 2021, growth: 30 }]);
+  assert.equal(result.min, -10); assert.equal(result.max, 30); assert.equal(result.missing, 1);
+  const data = fixture();
+  data.rows.filter(row => row.Year === 2021).forEach(row => { row['Active Accounts'] = 0; });
+  assert.equal(metricComparisons(executiveComparison(data, ['US'], 2026, 1, 2, '2021'), 'Active Accounts')[0].growth, null);
+});
+
+test('comparison state validates shared links and handles the first year', () => {
+  assert.equal(normalizeComparison('2026', 2026, 2026), 'prior');
+  assert.equal(normalizeComparison('nonsense', 2026, 2026), 'prior');
+  assert.equal(normalizeComparison('2030', 2026, 2026), 'prior');
+  assert.equal(normalizeComparison('2026', 2021, 2026), '2026');
+  assert.equal(executiveComparison(fixture(), ['US'], 2019, 1, 2, 'all').comparisons.length, 0);
+  assert.equal(executiveComparison(fixture(), ['US'], 2026, 1, 2, 'prior').comparisons[0].year, 2025);
+});
 
 test('fitted trend is a least-squares fit over the selected months only', () => {
   const rows = fittedTrend([{ count: 10 }, { count: 20 }, { count: 30 }], 'count');
