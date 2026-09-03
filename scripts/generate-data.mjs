@@ -33,5 +33,5 @@ for (let year = 2019; year <= lastYear; year++) {
 }
 mkdirSync('public/data', { recursive: true });
 writeFileSync('public/data/markets.csv', rows.join('\n') + '\n');
-writeFileSync('public/data/metadata.json', JSON.stringify({ kind: 'synthetic', title: 'Illustrative sample data', through: periodKey(lastYear, lastMonth), generatedAt: new Date().toISOString(), partialCurrentMonth: periodKey(lastYear, lastMonth) === new Date().toISOString().slice(0, 7), note: 'Synthetic monthly observations. A latest current-month observation is illustrative and reported as partial.' }, null, 2) + '\n');
+writeFileSync('public/data/metadata.json', JSON.stringify({ kind: 'synthetic', title: 'Illustrative sample data', through: periodKey(lastYear, lastMonth), generatedAt: new Date().toISOString(), note: 'Synthetic full-month observations. All values are illustrative.' }, null, 2) + '\n');
 console.log(`Generated ${rows.length - 1} rows: 14 markets, Jan 2019–${through}.`);

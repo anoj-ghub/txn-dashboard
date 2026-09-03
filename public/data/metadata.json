@@ -3,6 +3,5 @@
   "title": "Illustrative sample data",
   "through": "2026-09",
   "generatedAt": "2026-09-02T21:06:41.760Z",
-  "partialCurrentMonth": true,
-  "note": "Synthetic monthly observations. The latest current-month observation is illustrative and reported as partial."
+  "note": "Synthetic full-month observations. All values are illustrative."
 }

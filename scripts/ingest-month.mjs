@@ -19,5 +19,5 @@ const result = parseData(toCSV(rows));
 if (result.markets.length !== 14) throw new Error(`Expected 14 markets; found ${result.markets.length}.`);
 if (result.missing.length) throw new Error(`Cannot publish: ${result.missing.length} missing market-month records, including ${result.missing.slice(0, 5).join(', ')}.`);
 writeFileSync('public/data/markets.csv', toCSV(result.rows) + '\r\n');
-writeFileSync('public/data/metadata.json', JSON.stringify({ kind: 'production', title: 'Monthly market reporting', through: periodKey(result.latest.year, result.latest.month), generatedAt: new Date().toISOString(), partialCurrentMonth: periodKey(result.latest.year, result.latest.month) === new Date().toISOString().slice(0, 7), note: 'Source: monthly mainframe export. A current-month record is reported as partial; cards and accounts are latest reported snapshots.' }, null, 2) + '\n');
+writeFileSync('public/data/metadata.json', JSON.stringify({ kind: 'production', title: 'Monthly market reporting', through: periodKey(result.latest.year, result.latest.month), generatedAt: new Date().toISOString(), note: 'Source: full-month mainframe export. Cards and accounts are month-end snapshots.' }, null, 2) + '\n');
 console.log(`Prepared ${result.rows.length} production records through ${periodKey(result.latest.year, result.latest.month)}. Review and commit both data files together.`);

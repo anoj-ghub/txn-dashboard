@@ -12,7 +12,7 @@ The dashboard uses larger typography and a premium blue theme, monthly transacti
 
 The executive readout includes a separate point for each of the four metrics, with its value, comparison change, and strongest market change (single baseline) or the count of higher/lower/unchanged comparisons (all previous years). Transactions use period totals; the other three metrics use the last selected month's balance. Share links preserve the comparison choice, and **Export CSV** includes the reporting and comparison years for the selected markets and months. Indexed trends describe the reporting year. The pie, grouped Basic bars, and historical metric tabs follow the selected comparison periods.
 
-Month selectors include **January through December** in every year. For the latest year, a partial-year banner states the dataset cutoff. When `partialCurrentMonth` is true, the latest month is marked as partial in the page status, banner, chart labels, tooltips, KPI cards, and monthly table. When the selected range extends beyond that cutoff, KPI totals and year-wise comparison summaries use only the reported portion of the selection, matched to the same months in every baseline year; balances use the last reported month in that range. Selecting only unreported months produces unavailable values. Missing records within the reported period still suppress incomplete aggregates. Monthly charts retain the full selected range, with unreported months shown as gaps.
+Month selectors include **January through December** in every year. For the latest year, a partial-year banner states the dataset cutoff. Every published month represents a full month of data. When the selected range extends beyond that cutoff, KPI totals and year-wise comparison summaries use only the reported portion of the selection, matched to the same months in every baseline year; balances use the last reported month in that range. Selecting only unreported months produces unavailable values. Missing records within the reported period still suppress incomplete aggregates. Monthly charts retain the full selected range, with unreported months shown as gaps.
 
 Select **Months within [year]** in the main comparison dropdown to see chronological monthly bars and a table of all four metrics. Each metric has its own chart tab, and future months are labelled **Not yet reported**. Month range and market filters apply across the dashboard, and shared links preserve the comparison mode.
 
@@ -27,7 +27,7 @@ The transaction trendline is an ordinary least-squares fit within the observed p
 - Matched prior-year overlays, market distribution charts, sortable market rankings, and calculated executive signals.
 - Local CSV preview, complete/filtered CSV download, and a print layout: **Export report → Save as PDF** in your browser.
 - Responsive layout, keyboard-operable controls, chart tooltips, and explicit loading, invalid-data, missing-data, and empty-selection states.
-- A repeatable synthetic dataset: **1,302 rows, 14 markets × 93 months, January 2019–September 2026**. Later regeneration extends through the current month. All numbers are illustrative; the latest current-month observation is explicitly reported as partial.
+- A repeatable synthetic dataset: **1,302 rows, 14 markets × 93 months, January 2019–September 2026**. Later regeneration extends through the current month. All numbers are illustrative and represent full-month observations.
 
 ## Run locally
 
@@ -121,7 +121,7 @@ git commit -m "Update monthly market reporting"
 git push origin main
 ```
 
-This merges by market/year/month and replaces matching records for corrections. It checks the resulting archive for all 14 markets and missing months before writing. A partial current month can be published when all 14 markets are present and `partialCurrentMonth` is `true` in `metadata.json`; the dashboard labels it throughout. Existing months can receive targeted corrections. Renamed markets require a consistent historical update. Review the diff and commit the CSV and metadata together.
+This merges by market/year/month and replaces matching records for corrections. It checks the resulting archive for all 14 markets and missing months before writing. Publish a full month of data for all 14 markets. Existing months can receive targeted corrections. Renamed markets require a consistent historical update. Review the diff and commit the CSV and metadata together.
 
 Alternatively replace the complete `public/data/markets.csv` in GitHub's web editor and update `public/data/metadata.json` with the same latest period in `YYYY-MM` form. Set `kind` to `production` for actual data, and provide an appropriate `title` and `note`. The two files must be committed together to pass validation.
 

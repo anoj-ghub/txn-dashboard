@@ -10,7 +10,6 @@ export function validateFile(file = 'public/data/markets.csv') {
 const dataset = validateFile(process.argv[2]);
 const metadata = JSON.parse(readFileSync('public/data/metadata.json', 'utf8'));
 if (!['synthetic', 'production'].includes(metadata.kind)) throw new Error('metadata.kind must be synthetic or production.');
-if (metadata.partialCurrentMonth != null && typeof metadata.partialCurrentMonth !== 'boolean') throw new Error('metadata.partialCurrentMonth must be true or false when supplied.');
 if (metadata.through !== periodKey(dataset.latest.year, dataset.latest.month)) throw new Error('metadata.through must match the latest CSV period.');
 const ids = dataset.markets.map(m => m.id);
 const current = summarize(monthlySeries(dataset.rows, ids, dataset.latest.year, 1, dataset.latest.month));

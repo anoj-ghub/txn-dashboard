@@ -129,14 +129,12 @@ test('within-year comparison needs two distinct reported months', () => {
   assert.equal(metricComparisons(model, 'Txn-count')[0].growth, null);
 });
 
-test('latest current-month observation is labelled and retained as partial', () => {
+test('latest published month is a complete observation with an unmarked label', () => {
   const data = fixture();
-  data.latestPartial = true;
   const model = executiveComparison(data, ['US', 'CA'], 2026, 1, 12, 'months');
-  assert.equal(model.latestMonthPartial, true);
-  assert.equal(model.series[1].label, 'Feb*');
-  assert.equal(model.series[1].partial, true);
-  assert.equal(model.series[0].partial, false);
+  assert.equal(model.series[1].label, 'Feb');
+  assert.equal(model.series[1].complete, true);
+  assert.equal(model.series[1].pending, false);
   assert.equal(model.series[2].pending, true);
   assert.equal(model.summary['Txn-count'], 5260);
 });
@@ -150,12 +148,11 @@ test('balance charts use a separate matched snapshot and market breakdown for ea
   assert.deepEqual(periods.map(row => row.markets.map(market => market.id)), [['US'], ['US']]);
 });
 
-test('monthly balance slices retain partial and unreported months without summing snapshots', () => {
+test('monthly balance slices retain reported and unreported months without summing snapshots', () => {
   const data = fixture();
-  data.latestPartial = true;
   const periods = balancePeriods(executiveComparison(data, ['US', 'CA'], 2026, 1, 3, 'months'), 2026);
   assert.deepEqual(periods.map(row => row.summary['Total Active Plastic']), [482, 484, null]);
-  assert.equal(periods[1].partial, true);
+  assert.equal(periods[1].label, 'Feb');
   assert.equal(periods[1].markets[0]['Total Active Plastic'], 242);
   assert.equal(periods[2].markets[0]['Total Active Plastic'], null);
 });

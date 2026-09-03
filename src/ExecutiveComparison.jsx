@@ -48,7 +48,7 @@ function MarketComparisonTip({ active, payload, label, model, period, mode = 'ra
     title = `${datum.year} · ${metric.label}`;
   } else if (mode === 'raw' || mode === 'indexed') {
     rows = model.marketSeries.map(market => ({ ...market, value: market.series.find(row => row.month === datum.month)?.[key] ?? null }));
-    title = `${datum.label ?? label} ${period.year}${datum.partial ? ' · partial' : ''} · ${metric.label}`;
+    title = `${datum.label ?? label} ${period.year} · ${metric.label}`;
     valuesAreGrowth = false;
   } else if (mode === 'monthlyGrowth') {
     const index = model.series.findIndex(row => row.month === datum.month);
@@ -101,7 +101,7 @@ function MonthlyTable({ rows, year }) {
     <div className="ex-table-scroll"><table>
       <thead><tr><th scope="col">Month</th>{metrics.map(metric => <th scope="col" key={metric.key}>{metric.label}</th>)}</tr></thead>
       <tbody>{rows.map(row => <tr key={row.month} className={row.pending ? 'ex-pending-month' : ''}>
-        <th scope="row">{row.label} {year}{(row.partial || !row.complete) && <small>{row.partial ? 'Partial month' : row.pending ? 'Not yet reported' : 'Incomplete data'}</small>}</th>
+        <th scope="row">{row.label} {year}{!row.complete && <small>{row.pending ? 'Not yet reported' : 'Incomplete data'}</small>}</th>
         {metrics.map(metric => <td key={metric.key}><strong title={number(row[metric.key])}>{compact(row[metric.key], 2)}</strong></td>)}
       </tr>)}</tbody>
     </table></div>
@@ -131,8 +131,8 @@ export function CombinedComparison({ model, period }) {
   const monthly = model.mode === 'months';
   const growth = metrics.map(metric => ({ ...metric, growth: metricComparisons(model, metric.key)[0]?.growth ?? null }));
   const yearlyGrowth = [...model.comparisons].sort((a, b) => b.year - a.year).map(reference => ({ label: String(reference.year), ...Object.fromEntries(metrics.map(metric => [metric.key, metricComparisons(model, metric.key).find(value => value.year === reference.year)?.growth ?? null])) }));
-  const monthlyGrowth = model.series.map((row, index) => ({ month: row.month, partial: row.partial, label: row.label, ...Object.fromEntries(metrics.map(metric => [metric.key, index > 0 && row[metric.key] != null && model.series[index - 1]?.[metric.key] > 0 ? (row[metric.key] / model.series[index - 1][metric.key] - 1) * 100 : null])) }));
-  const indexedRows = model.series.map(row => ({ month: row.month, partial: row.partial, label: row.label, ...Object.fromEntries(metrics.map(metric => [metric.key, model.series[0]?.[metric.key] > 0 && row[metric.key] != null ? row[metric.key] / model.series[0][metric.key] * 100 : null])) }));
+  const monthlyGrowth = model.series.map((row, index) => ({ month: row.month, label: row.label, ...Object.fromEntries(metrics.map(metric => [metric.key, index > 0 && row[metric.key] != null && model.series[index - 1]?.[metric.key] > 0 ? (row[metric.key] / model.series[index - 1][metric.key] - 1) * 100 : null])) }));
+  const indexedRows = model.series.map(row => ({ month: row.month, label: row.label, ...Object.fromEntries(metrics.map(metric => [metric.key, model.series[0]?.[metric.key] > 0 && row[metric.key] != null ? row[metric.key] / model.series[0][metric.key] * 100 : null])) }));
   const best = !all ? [...growth].filter(metric => metric.growth != null).sort((a, b) => b.growth - a.growth)[0] : null;
   const hasGrowth = (monthly ? monthlyGrowth : yearlyGrowth).some(row => metrics.some(metric => row[metric.key] != null));
   return <section className="ex-panel ex-combined" id="combined"><div className="ex-panel-heading"><div><span className="ex-chart-eyebrow"><i />THE COMBINED VIEW</span><h2>Four indicators. One perspective.</h2><p>{indexed ? `${period.year} monthly movement · ${MONTHS[period.start - 1]} = 100` : monthly ? `${period.year} month-over-month change · selected markets only` : all ? `${period.year} growth versus each earlier year · same markets and months` : `Like-for-like change against ${comparisonLabel(model)} · all selected markets`}</p></div><div className="ex-segments"><button aria-pressed={!indexed} className={!indexed ? 'active' : ''} onClick={() => setIndexed(false)}>{monthly ? 'Monthly change' : 'Comparison growth'}</button><button aria-pressed={indexed} className={indexed ? 'active' : ''} onClick={() => setIndexed(true)}>Indexed trends</button></div></div>

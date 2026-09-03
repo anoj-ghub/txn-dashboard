@@ -11,18 +11,17 @@ export function executiveComparison(dataset, ids, year, start, end, requested = 
   const years = mode === 'months' ? [] : mode === 'all' ? Array.from({ length: year - 2019 }, (_, i) => 2019 + i) : mode === 'prior' ? year > 2019 ? [year - 1] : [] : [Number(mode)];
   const reportedEnd = year === dataset.latest.year ? Math.min(end, dataset.latest.month) : end;
   const model = selectionData(dataset, ids, year, start, reportedEnd);
-  const latestMonthPartial = Boolean(dataset.latestPartial) && year === dataset.latest.year && start <= dataset.latest.month && end >= dataset.latest.month;
-  const series = monthlySeries(dataset.rows, ids, year, start, end).map(row => ({ ...row, label: row.month === dataset.latest.month && latestMonthPartial ? `${row.label}*` : row.label, pending: year === dataset.latest.year && row.month > dataset.latest.month, partial: row.month === dataset.latest.month && latestMonthPartial }));
+  const series = monthlySeries(dataset.rows, ids, year, start, end).map(row => ({ ...row, pending: year === dataset.latest.year && row.month > dataset.latest.month }));
   const marketSeries = dataset.markets.filter(market => ids.includes(market.id)).map(market => ({ ...market, series: monthlySeries(dataset.rows, [market.id], year, start, end) }));
   const comparisons = years.map(referenceYear => {
     const series = monthlySeries(dataset.rows, ids, referenceYear, start, end).map(row => row.month > reportedEnd ? { ...row, complete: false, ...Object.fromEntries(METRICS.map(metric => [metric.key, null])) } : row);
     const markets = dataset.markets.filter(market => ids.includes(market.id)).map(market => ({ ...market, ...summarize(monthlySeries(dataset.rows, [market.id], referenceYear, start, reportedEnd)) }));
-    return { year: referenceYear, series, summary: summarize(series.filter(row => row.month <= reportedEnd)), markets, partial: Boolean(dataset.latestPartial) && referenceYear === dataset.latest.year && reportedEnd === dataset.latest.month };
+    return { year: referenceYear, series, summary: summarize(series.filter(row => row.month <= reportedEnd)), markets };
   });
   const unavailable = Object.fromEntries(METRICS.map(metric => [metric.key, null]));
   const monthly = monthlyChanges(model.series);
   return {
-    ...model, series, reportedSeries: model.series, marketSeries, latestMonthPartial, reportedEnd, hasReportedMonths: reportedEnd >= start, mode, comparisons,
+    ...model, series, reportedSeries: model.series, marketSeries, reportedEnd, hasReportedMonths: reportedEnd >= start, mode, comparisons,
     prior: mode !== 'all' && comparisons[0] ? comparisons[0].summary : unavailable,
     previous: mode !== 'all' && comparisons[0] ? comparisons[0].series : [],
     monthly,
@@ -35,13 +34,13 @@ export function executiveComparison(dataset, ids, year, start, end, requested = 
 
 export function balancePeriods(model, year) {
   if (model.mode === 'months') return model.series.map(row => ({
-    id: `month${row.month}`, label: row.label, year, month: row.month, partial: row.partial,
+    id: `month${row.month}`, label: row.label, year, month: row.month,
     summary: Object.fromEntries(METRICS.map(metric => [metric.key, row[metric.key]])),
     markets: model.marketSeries.map(market => ({ id: market.id, name: market.name, ...market.series.find(point => point.month === row.month) })),
   }));
-  return [{ year, summary: model.summary, markets: model.markets, partial: model.latestMonthPartial }, ...model.comparisons]
+  return [{ year, summary: model.summary, markets: model.markets }, ...model.comparisons]
     .sort((a, b) => b.year - a.year)
-    .map(row => ({ ...row, id: `year${row.year}`, label: `${row.year}${row.partial ? '*' : ''}`, month: model.reportedEnd }));
+    .map(row => ({ ...row, id: `year${row.year}`, label: String(row.year), month: model.reportedEnd }));
 }
 
 export function monthlyChanges(series) {
