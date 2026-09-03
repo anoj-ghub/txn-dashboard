@@ -129,6 +129,18 @@ test('within-year comparison needs two distinct reported months', () => {
   assert.equal(metricComparisons(model, 'Txn-count')[0].growth, null);
 });
 
+test('latest current-month observation is labelled and retained as partial', () => {
+  const data = fixture();
+  data.latestPartial = true;
+  const model = executiveComparison(data, ['US', 'CA'], 2026, 1, 12, 'months');
+  assert.equal(model.latestMonthPartial, true);
+  assert.equal(model.series[1].label, 'Feb*');
+  assert.equal(model.series[1].partial, true);
+  assert.equal(model.series[0].partial, false);
+  assert.equal(model.series[2].pending, true);
+  assert.equal(model.summary['Txn-count'], 5260);
+});
+
 test('fitted trend is a least-squares fit over the selected months only', () => {
   const rows = fittedTrend([{ count: 10 }, { count: 20 }, { count: 30 }], 'count');
   assert.deepEqual(rows.map(row => row.fitted), [10, 20, 30]);
