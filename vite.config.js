@@ -6,6 +6,6 @@ export default defineConfig({
   base: './',
   build: {
     chunkSizeWarningLimit: 700,
-    rollupOptions: { input: { classic: 'index.html', executive: 'executive.html' } },
+    rollupOptions: { input: { dashboard: 'index.html', executive: 'executive.html' } },
   },
 });

@@ -2,23 +2,19 @@
 
 A static, interactive leadership dashboard for 14 markets. React + Vite + Recharts, deployed through GitHub Actions to GitHub Pages. **No Sites services, application server, runtime API, database, analytics tracking, or external font/CDN dependencies.**
 
-Dashboard URL after Pages is enabled and the first deployment succeeds: **https://anoj-ghub.github.io/txn-dashboard/**
+**[Open Atlas Executive](https://anoj-ghub.github.io/txn-dashboard/)**
 
-## Executive view — second design
+Atlas Executive is the repository’s only dashboard and opens at the root URL. The former dashboard and its source entry have been removed. The existing `/executive.html` address remains as an alias for previously shared links.
 
-**[Open Atlas Executive](https://anoj-ghub.github.io/txn-dashboard/executive.html)**
+The dashboard uses larger typography and a premium blue theme, monthly transaction bars with a descriptive fitted trendline, an active-plastic market-share donut, ranked horizontal bars for active basic, and an active-account area/trend chart. Market comparison switches transaction bars into market stacks; donut legends, ranking labels, and the market scorecard drill into a selection. Every chart follows the selected markets, timeframe, and comparison mode. Definitions, filtered CSV export, shareable links, and a printable brief are included.
 
-The second design is a separate entry point. The original dashboard, styles, and behavior remain unchanged at the root URL. Both views read the same CSV and are deployed by the same workflow.
-
-The executive view uses larger typography and an emerald-and-cream theme, monthly transaction bars with a descriptive fitted trendline, an active-plastic market-share donut, ranked horizontal bars for active basic, and an active-account area/trend chart. Its combined view switches between growth against the selected comparison years and indexed monthly trends. Market comparison switches transaction bars into market stacks; donut legends, ranking labels, and the market scorecard drill into a selection. Every chart follows the selected markets and timeframe. Definitions, filtered CSV export, shareable links, and a printable brief are included.
-
-**Comparison year** offers the previous year, any other available year, or **All previous years**. Every baseline uses the reporting year's selected months and markets. All previous years means each year from 2019 through the year before the reporting year, shown separately in historical bars, chart overlays, combined growth bars, and an expandable four-metric table. KPI cards and the scorecard show the minimum-to-maximum percentage change across available baselines, never a historical average. Missing or zero baselines are marked unavailable. Changes spanning multiple years are cumulative, not annualized.
+**Compare [year] with** offers **Months within [year]**, the previous year, any other available year, or **All previous years**. The monthly option switches the entire dashboard to the selected year: KPI cards, readout, and scorecard show first-to-last reported-month change; year overlays disappear; the time-detail panel shows monthly values; and the combined chart shows each month’s change from its immediate predecessor. Year modes use the reporting year's selected months and markets. All previous years means each year from 2019 through the year before the reporting year, shown separately in historical bars, chart overlays, combined growth bars, and an expandable four-metric table. KPI cards and the scorecard show the minimum-to-maximum percentage change across available baselines, never a historical average. Missing or zero baselines are marked unavailable. Changes spanning multiple years are cumulative, not annualized.
 
 The executive readout includes a separate point for each of the four metrics, with its value, comparison change, and strongest market change (single baseline) or the count of higher/lower/unchanged comparisons (all previous years). Transactions use period totals; the other three metrics use the last selected month's balance. Share links preserve the comparison choice, and **Export CSV** includes the reporting and comparison years for the selected markets and months. Indexed trends, the market-share donut, and active-basic rankings describe the reporting year; use the historical metric tabs to compare card/account balances across years.
 
 Month selectors include **January through December** in every year. For the latest year, a partial-year banner states the dataset cutoff. When the selected range extends beyond that cutoff, KPI totals and year-wise comparison summaries use only the reported portion of the selection, matched to the same months in every baseline year; balances use the last reported month in that range. Selecting only unreported months produces unavailable values. Missing records within the reported period still suppress incomplete aggregates. Monthly charts retain the full selected range, with unreported months shown as gaps.
 
-Use **Year-wise comparison / Month-wise within year** in the comparison panel to switch between newest-first year comparisons and chronological monthly bars for the selected year. Each metric has its own chart tab; the monthly view also shows all four values in a table and labels future months **Not yet reported**. The month range and market filters apply to both views, and shared links preserve the toggle. The other dashboard panels retain their selected year-comparison context.
+Select **Months within [year]** in the main comparison dropdown to see chronological monthly bars and a table of all four metrics. Each metric has its own chart tab, and future months are labelled **Not yet reported**. Month range and market filters apply across the dashboard, and shared links preserve the comparison mode.
 
 The transaction trendline is an ordinary least-squares fit within the observed period, not a forecast. It is omitted for fewer than two months or an incomplete selected period. The donut groups smaller markets into a labelled “Other markets” slice without dropping their values from the denominator.
 
@@ -91,6 +87,8 @@ The browser can preview smaller or incomplete datasets, displays a coverage warn
 | Active accounts | Last selected month's snapshot across selected markets | Each month's snapshot |
 
 Year-over-year is `(current / prior - 1) × 100`, using the same months and market selection in the prior year. A zero/missing prior value yields unavailable growth, not infinity. The first year of history has no prior-year comparison. Period transaction totals require all selected observations; stock totals require all selected markets in the final month. Individual incomplete chart months are gaps.
+
+Within-year KPI, readout, and scorecard change is `(last reported month / first reported month - 1) × 100`. It requires two distinct, complete reported months. The combined monthly-change chart compares each reported month with its immediate predecessor. Transaction KPI values remain selected-period totals; transaction change in within-year mode compares monthly volumes so it is not distorted by summing different numbers of months.
 
 Indexed values are `monthly value / first selected month's value × 100`; a zero/missing baseline cannot be indexed. Transactions per account uses **the last selected month's transactions / that month's active accounts**, not YTD transactions divided by a monthly balance. Signals describe measured changes; they do not infer business causes or claim statistical significance. Portfolio account totals assume market populations are additive; the file cannot deduplicate people who hold accounts in multiple markets. Confirm the mainframe's precise definitions of “plastic,” “basic,” “active,” reporting cutoff, and market assignment before business use.
 
@@ -171,9 +169,11 @@ If a separate GitHub workflow commits data with the default `GITHUB_TOKEN`, that
 ## Project map
 
 ```text
-src/App.jsx                 Dashboard and local interaction state
+src/Executive.jsx           Dashboard and local interaction state
+src/ExecutiveComparison.jsx Time-comparison views and readouts
+src/executive-data.mjs      Executive comparison calculations
 src/data.mjs                Shared parsing and metric calculations
-src/styles.css              Responsive layout and print styles
+src/executive.css           Blue theme, responsive layout, and print styles
 public/data/markets.csv     Published historical dataset
 public/data/metadata.json   Dataset type and reporting period
 scripts/generate-data.mjs   Deterministic sample generator
