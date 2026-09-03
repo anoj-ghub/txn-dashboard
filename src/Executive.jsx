@@ -17,7 +17,7 @@ function ChartTip({ active, payload, label, suffix = '' }) {
   return <div className="ex-tooltip"><strong>{label || payload[0].name}</strong>{payload.filter(item => item.value != null).map((item, i) => <div key={i}><i style={{ background: item.color || item.payload.fill }} /><span>{item.name}</span><b>{suffix ? `${Number(item.value).toFixed(1)}${suffix}` : number(Math.round(item.value))}</b></div>)}</div>;
 }
 
-function MarketBreakdownTip({ active, payload, label, model, metricKey, colorOf, month, marketRows }) {
+function MarketBreakdownTip({ active, payload, label, model, metricKey, colorOf, month, marketRows, heading }) {
   if (!active || !payload?.length) return null;
   const metric = metrics.find(item => item.key === metricKey);
   const activeMonth = month ?? payload[0]?.payload?.month;
@@ -28,7 +28,40 @@ function MarketBreakdownTip({ active, payload, label, model, metricKey, colorOf,
   const rows = source.map(market => ({ ...market, value: market.value ?? market[metricKey] ?? null })).filter(market => market.value != null).sort((a, b) => b.value - a.value);
   const aggregate = activeMonth != null ? model.series.find(row => row.month === activeMonth)?.[metricKey] : model.summary[metricKey];
   const partial = activeMonth === model.series.find(row => row.partial)?.month;
-  return <div className="ex-tooltip ex-market-tooltip"><strong>{label || payload[0]?.payload?.label || metric.label}{partial ? ' · partial' : ''}</strong><div className="ex-tooltip-total"><span>{metric.label}</span><b>{compact(aggregate, 2)}</b></div><p>Market breakdown</p><div className="ex-market-tooltip-list">{rows.map(row => <span key={row.id}><i style={{ background: colorOf(row.id) }} /><em>{row.id}</em><small title={row.name}>{row.name}</small><b>{compact(row.value, 2)}</b></span>)}</div></div>;
+  return <div className="ex-tooltip ex-market-tooltip"><strong>{heading || label || payload[0]?.payload?.label || metric.label}{partial ? ' · partial' : ''}</strong><div className="ex-tooltip-total"><span>{metric.label}</span><b>{compact(aggregate, 2)}</b></div><p>Market breakdown</p><div className="ex-market-tooltip-list">{rows.map(row => <span key={row.id}><i style={{ background: colorOf(row.id) }} /><em>{row.id}</em><small title={row.name}>{row.name}</small><b>{compact(row.value, 2)}</b></span>)}</div></div>;
+}
+
+function YearMarketComparison({ model, period, colorOf, onSelect, kind, expanded, onExpand }) {
+  const plastic = kind === 'plastic';
+  const key = plastic ? 'Total Active Plastic' : 'Total Active Basic';
+  const snapshots = [{ year: period.year, summary: model.summary, markets: model.markets, partial: model.latestMonthPartial }, ...model.comparisons].sort((a, b) => b.year - a.year);
+  const ranked = [...model.markets].sort((a, b) => (b[key] ?? -Infinity) - (a[key] ?? -Infinity));
+  const shownIds = ranked.slice(0, expanded ? ranked.length : plastic ? 5 : 6).map(market => market.id);
+  const scaleMax = Math.max(1, ...snapshots.flatMap(snapshot => snapshot.markets.filter(market => shownIds.includes(market.id)).map(market => market[key] ?? 0))) * 1.08;
+  return <section className={`ex-panel ex-${kind} ex-multi-year`}>
+    <div className="ex-panel-heading"><div><span className="ex-chart-eyebrow"><i style={{ background: plastic ? metrics[1].color : metrics[2].color }} />{plastic ? '02 / PLASTIC' : '03 / BASIC'}</span><h2>{plastic ? 'Market share, year by year.' : 'Active basic, year by year.'}</h2><p>{model.hasReportedMonths ? `${MONTHS[period.end - 1]} snapshots in every year` : 'No reported snapshot in this selection'} · same {model.markets.length} selected markets</p></div><button className="ex-subtle-button" onClick={onExpand}>{expanded ? plastic ? 'Top 5 + others' : 'Top 6' : 'All markets'}<ChevronDown size={14} /></button></div>
+    <div className="ex-year-market-grid">{snapshots.map(snapshot => {
+      const total = snapshot.summary[key];
+      const rows = shownIds.map(id => snapshot.markets.find(market => market.id === id)).filter(Boolean);
+      const rest = snapshot.markets.filter(market => !shownIds.includes(market.id));
+      const slices = rows.filter(market => market[key] > 0).map(market => ({ id: market.id, name: market.name, value: market[key] }));
+      if (rest.length && rest.every(market => market[key] != null)) slices.push({ id: 'others', name: `Other ${rest.length} markets`, value: rest.reduce((sum, market) => sum + market[key], 0) });
+      const tipModel = { ...model, summary: snapshot.summary, series: [{ month: model.reportedEnd, partial: snapshot.partial, ...snapshot.summary }] };
+      const tooltip = <Tooltip position={{ x: 0, y: 0 }} content={<MarketBreakdownTip model={tipModel} metricKey={key} colorOf={colorOf} month={model.reportedEnd} marketRows={snapshot.markets} heading={`${MONTHS[period.end - 1]} ${snapshot.year}`} />} />;
+      return <article className={`ex-year-market-card ${snapshot.year === period.year ? 'is-reporting' : ''}`} key={snapshot.year} aria-label={`${snapshot.year} ${plastic ? 'active plastic' : 'active basic'}`}>
+        <header><h3>{snapshot.year}</h3><span>{snapshot.year === period.year ? 'Reporting year' : 'Comparison year'}{snapshot.partial ? ' · partial month' : ''}</span></header>
+        {total == null ? <ChartEmpty>Snapshot unavailable for this year.</ChartEmpty> : plastic ? total === 0 ? <ChartEmpty>No active plastic in this year.</ChartEmpty> : <>
+          <div className="ex-donut-wrap"><div className="ex-donut-center"><strong>{compact(total, 2)}</strong><span>ACTIVE PLASTIC</span></div><ResponsiveContainer width="100%" height="100%"><PieChart accessibilityLayer><Pie data={slices} dataKey="value" nameKey="name" innerRadius="67%" outerRadius="91%" paddingAngle={2} startAngle={90} endAngle={-270} stroke="none" isAnimationActive={false}>{slices.map(slice => <Cell key={slice.id} fill={slice.id === 'others' ? '#cbd5e1' : colorOf(slice.id)} />)}</Pie>{tooltip}</PieChart></ResponsiveContainer></div>
+          <div className="ex-year-share-list">{slices.map(slice => <span key={slice.id}><i style={{ background: slice.id === 'others' ? '#cbd5e1' : colorOf(slice.id) }} /><span>{slice.id === 'others' ? slice.name : slice.id}</span><b>{(slice.value / total * 100).toFixed(1)}%</b></span>)}</div>
+        </> : <>
+          <div className="ex-year-balance"><strong>{compact(total, 2)}</strong><span>ACTIVE BASIC · ALL SELECTED MARKETS</span></div>
+          <div className="ex-year-basic-chart" style={{ height: Math.max(245, rows.length * 33 + 35) }}><ResponsiveContainer width="100%" height="100%"><BarChart data={rows} layout="vertical" margin={{ left: 0, right: 53, top: 8, bottom: 4 }} accessibilityLayer><CartesianGrid horizontal={false} stroke="#e5edf5" strokeDasharray="3 5" /><XAxis type="number" {...axis} domain={[0, scaleMax]} tickFormatter={value => compact(value)} tickCount={3} /><YAxis type="category" dataKey="id" {...axis} width={32} interval={0} />{tooltip}<Bar dataKey={key} name="Active basic" maxBarSize={22} radius={[0, 4, 4, 0]} isAnimationActive={false}>{rows.map(row => <Cell key={row.id} fill={colorOf(row.id)} />)}<LabelList dataKey={key} position="right" formatter={value => compact(value, 2)} fill="#315d8d" fontSize={11} offset={5} /></Bar></BarChart></ResponsiveContainer></div>
+        </>}
+      </article>;
+    })}</div>
+    <div className="ex-ranking-key ex-year-market-key">{ranked.map(market => <button key={market.id} onClick={() => onSelect([market.id])}><i style={{ background: colorOf(market.id) }} /><b>{market.id}</b>{market.name}<ArrowUpRight size={12} /></button>)}</div>
+    <div className="ex-chart-footer"><Globe2 size={16} /><span>{plastic ? 'Each donut shows that year’s own market shares. Market colors and the top-five group stay consistent across years.' : 'Each year uses the same market order and value scale. Top six are chosen from the reporting year.'} Hover for all market values; click a market name to explore.</span></div>
+  </section>;
 }
 
 function ChartEmpty({ children = 'Complete observations are needed for this chart.' }) {
@@ -87,6 +120,7 @@ function PlasticChart({ model, colorOf, period, onSelect }) {
   const [expanded, setExpanded] = useState(false);
   if (model.mode === 'months') return <section className="ex-panel ex-plastic"><div className="ex-panel-heading"><div><span className="ex-chart-eyebrow"><i style={{ background: metrics[1].color }} />02 / PLASTIC</span><h2>Active plastic through the year</h2><p>Monthly closing balances · {period.year}</p></div><span className="ex-chart-badge">MONTHLY TREND</span></div><div className="ex-chart ex-month-metric-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={model.series} margin={{ left: 3, right: 20, top: 30, bottom: 5 }} accessibilityLayer>{grid}<XAxis dataKey="label" {...axis} /><YAxis {...axis} width={60} tickFormatter={value => compact(value)} domain={['auto', 'auto']} /><Tooltip content={<MarketBreakdownTip model={model} metricKey="Total Active Plastic" colorOf={colorOf} />} /><Line type="monotone" dataKey="Total Active Plastic" name="Active plastic" stroke={metrics[1].color} strokeWidth={3} dot={{ r: 3, fill: metrics[1].color, stroke: '#fff', strokeWidth: 2 }} connectNulls={false} isAnimationActive={false} /></LineChart></ResponsiveContainer></div><div className="ex-chart-footer"><CreditCard size={17} /><span>Each point is a month-end balance. Unreported months remain blank.</span></div></section>;
   const slices = marketSlices(model.markets, 'Total Active Plastic', expanded ? 14 : 5);
+  if (model.comparisons.length > 0) return <YearMarketComparison model={model} period={period} colorOf={colorOf} onSelect={onSelect} kind="plastic" expanded={expanded} onExpand={() => setExpanded(!expanded)} />;
   const total = model.summary['Total Active Plastic'];
   const valid = total != null && total > 0 && slices.length;
   return <section className="ex-panel ex-plastic"><div className="ex-panel-heading"><div><span className="ex-chart-eyebrow"><i style={{ background: metrics[1].color }} />02 / PLASTIC</span><h2>Where the scale sits</h2><p>Active plastic by market · {period.last}</p></div><button className="ex-subtle-button" onClick={() => setExpanded(!expanded)}>{expanded ? 'Top 5 + others' : 'Show all'}</button></div>
@@ -100,6 +134,7 @@ function BasicChart({ model, period, onSelect, colorOf }) {
   const [all, setAll] = useState(false);
   if (model.mode === 'months') return <section className="ex-panel ex-basic"><div className="ex-panel-heading"><div><span className="ex-chart-eyebrow"><i style={{ background: metrics[2].color }} />03 / BASIC</span><h2>Active basic by month</h2><p>Monthly closing balances · {period.year}</p></div><span className="ex-chart-badge">MONTHLY BARS</span></div><div className="ex-chart ex-month-metric-chart"><ResponsiveContainer width="100%" height="100%"><BarChart data={model.series} margin={{ left: 3, right: 18, top: 30, bottom: 5 }} accessibilityLayer>{grid}<XAxis dataKey="label" {...axis} /><YAxis {...axis} width={60} tickFormatter={value => compact(value)} domain={[0, 'auto']} /><Tooltip content={<MarketBreakdownTip model={model} metricKey="Total Active Basic" colorOf={colorOf} />} cursor={{ fill: '#dbeafe55' }} /><Bar dataKey="Total Active Basic" name="Active basic" fill={metrics[2].color} maxBarSize={35} radius={[4, 4, 0, 0]} isAnimationActive={false} /></BarChart></ResponsiveContainer></div><div className="ex-chart-footer"><WalletCards size={17} /><span>Each bar is a month-end balance. Unreported months remain blank.</span></div></section>;
   const sorted = [...model.markets].filter(market => market['Total Active Basic'] != null).sort((a, b) => b['Total Active Basic'] - a['Total Active Basic']);
+  if (model.comparisons.length > 0) return <YearMarketComparison model={model} period={period} colorOf={colorOf} onSelect={onSelect} kind="basic" expanded={all} onExpand={() => setAll(!all)} />;
   const rows = sorted.slice(0, all ? 14 : 6);
   const largest = rows[0];
   return <section className="ex-panel ex-basic"><div className="ex-panel-heading"><div><span className="ex-chart-eyebrow"><i style={{ background: metrics[2].color }} />03 / BASIC</span><h2>Markets that move the needle</h2><p>Active basic balances · {period.last}</p></div><button className="ex-subtle-button" onClick={() => setAll(!all)}>{all ? 'Top 6' : 'All markets'}<ChevronDown size={14} /></button></div>
@@ -224,7 +259,7 @@ export default function Executive() {
           <div className="ex-section-intro"><div><span>PERFORMANCE EXPLORER</span><h2>A different lens on every metric.</h2></div><a href="#combined">See the combined view <ArrowRight size={16} /></a></div>
           <div className="ex-chart-grid"><TransactionChart model={model} period={period} marketRows={marketRows} selected={selected} colorOf={colorOf} compare={compare} /><PlasticChart model={model} period={period} colorOf={colorOf} onSelect={choose} /><BasicChart model={model} period={period} colorOf={colorOf} onSelect={choose} /><AccountsChart model={model} period={period} colorOf={colorOf} /></div>
           <CombinedChart model={model} period={period} /><Scorecard model={model} period={period} onSelect={choose} />
-          <div className="ex-final-actions"><span><Check size={16} />One dataset. Consistent definitions. Clear comparisons.</span><button onClick={() => window.print()}>Print executive brief <Download size={16} /></button></div>
+          <div className="ex-final-actions"><span><Check size={16} />One dataset. Consistent definitions. Clear comparisons.</span></div>
         </>}
       </>}
       <footer className="ex-page-footer"><span className="ex-footer-brand">atlas<span>.</span></span><span>Market intelligence, with perspective.</span></footer>

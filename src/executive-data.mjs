@@ -17,7 +17,7 @@ export function executiveComparison(dataset, ids, year, start, end, requested = 
   const comparisons = years.map(referenceYear => {
     const series = monthlySeries(dataset.rows, ids, referenceYear, start, end).map(row => row.month > reportedEnd ? { ...row, complete: false, ...Object.fromEntries(METRICS.map(metric => [metric.key, null])) } : row);
     const markets = dataset.markets.filter(market => ids.includes(market.id)).map(market => ({ ...market, ...summarize(monthlySeries(dataset.rows, [market.id], referenceYear, start, reportedEnd)) }));
-    return { year: referenceYear, series, summary: summarize(series.filter(row => row.month <= reportedEnd)), markets };
+    return { year: referenceYear, series, summary: summarize(series.filter(row => row.month <= reportedEnd)), markets, partial: Boolean(dataset.latestPartial) && referenceYear === dataset.latest.year && reportedEnd === dataset.latest.month };
   });
   const unavailable = Object.fromEntries(METRICS.map(metric => [metric.key, null]));
   const monthly = monthlyChanges(model.series);
