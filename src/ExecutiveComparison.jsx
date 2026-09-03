@@ -54,7 +54,7 @@ export function ExecutiveReadout({ model, period }) {
 export function YearComparison({ model, period }) {
   const [activeKey, setActiveKey] = useState('Txn-count');
   const metric = metrics.find(item => item.key === activeKey);
-  const years = [...model.comparisons.map(reference => ({ year: reference.year, ...reference.summary })), { year: period.year, ...model.summary }].sort((a, b) => a.year - b.year);
+  const years = [...model.comparisons.map(reference => ({ year: reference.year, ...reference.summary })), { year: period.year, ...model.summary }].sort((a, b) => b.year - a.year);
   const rows = years.map(row => ({ ...row, label: String(row.year), fill: row.year === period.year ? metric.color : '#d4dfd8' }));
   return <section className="ex-panel ex-year-comparison" id="year-comparison">
     <div className="ex-panel-heading"><div><span className="ex-chart-eyebrow"><i />MATCHED PERIODS, EVERY YEAR</span><h2>{model.mode === 'all' ? 'Compare all previous years.' : `Compare ${period.year} with ${comparisonLabel(model)}.`}</h2><p>{period.short} in every year · same {model.markets.length} selected markets · {metric.kind === 'flow' ? 'period totals' : `${MONTHS[period.end - 1]} snapshots`}</p></div><span className="ex-chart-badge">{period.year} HIGHLIGHTED</span></div>
@@ -71,7 +71,7 @@ export function CombinedComparison({ model, period }) {
   const [visible, setVisible] = useState(metrics.map(metric => metric.key));
   const all = model.mode === 'all';
   const growth = metrics.map(metric => ({ ...metric, growth: metricComparisons(model, metric.key)[0]?.growth ?? null }));
-  const yearlyGrowth = model.comparisons.map(reference => ({ label: String(reference.year), ...Object.fromEntries(metrics.map(metric => [metric.key, metricComparisons(model, metric.key).find(value => value.year === reference.year)?.growth ?? null])) }));
+  const yearlyGrowth = [...model.comparisons].sort((a, b) => b.year - a.year).map(reference => ({ label: String(reference.year), ...Object.fromEntries(metrics.map(metric => [metric.key, metricComparisons(model, metric.key).find(value => value.year === reference.year)?.growth ?? null])) }));
   const indexedRows = model.series.map(row => ({ label: row.label, ...Object.fromEntries(metrics.map(metric => [metric.key, model.series[0]?.[metric.key] > 0 && row[metric.key] != null ? row[metric.key] / model.series[0][metric.key] * 100 : null])) }));
   const best = !all ? [...growth].filter(metric => metric.growth != null).sort((a, b) => b.growth - a.growth)[0] : null;
   const hasGrowth = yearlyGrowth.some(row => metrics.some(metric => row[metric.key] != null));
