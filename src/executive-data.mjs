@@ -33,6 +33,17 @@ export function executiveComparison(dataset, ids, year, start, end, requested = 
   };
 }
 
+export function balancePeriods(model, year) {
+  if (model.mode === 'months') return model.series.map(row => ({
+    id: `month${row.month}`, label: row.label, year, month: row.month, partial: row.partial,
+    summary: Object.fromEntries(METRICS.map(metric => [metric.key, row[metric.key]])),
+    markets: model.marketSeries.map(market => ({ id: market.id, name: market.name, ...market.series.find(point => point.month === row.month) })),
+  }));
+  return [{ year, summary: model.summary, markets: model.markets, partial: model.latestMonthPartial }, ...model.comparisons]
+    .sort((a, b) => b.year - a.year)
+    .map(row => ({ ...row, id: `year${row.year}`, label: `${row.year}${row.partial ? '*' : ''}`, month: model.reportedEnd }));
+}
+
 export function monthlyChanges(series) {
   const available = series.filter(row => row.complete);
   return Object.fromEntries(METRICS.map(metric => {

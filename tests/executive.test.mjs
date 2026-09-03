@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fittedTrend, marketSlices, executiveComparison, metricComparisons, comparisonExtent, normalizeComparison, monthlyChanges } from '../src/executive-data.mjs';
+import { fittedTrend, marketSlices, executiveComparison, metricComparisons, comparisonExtent, normalizeComparison, monthlyChanges, balancePeriods } from '../src/executive-data.mjs';
 
 const fixture = () => ({
   latest: { year: 2026, month: 2 },
@@ -139,6 +139,25 @@ test('latest current-month observation is labelled and retained as partial', () 
   assert.equal(model.series[0].partial, false);
   assert.equal(model.series[2].pending, true);
   assert.equal(model.summary['Txn-count'], 5260);
+});
+
+test('balance charts use a separate matched snapshot and market breakdown for each year', () => {
+  const model = executiveComparison(fixture(), ['US'], 2026, 1, 12, '2021');
+  const periods = balancePeriods(model, 2026);
+  assert.deepEqual(periods.map(row => row.year), [2026, 2021]);
+  assert.deepEqual(periods.map(row => row.summary['Total Active Basic']), [162, 62]);
+  assert.deepEqual(periods.map(row => row.month), [2, 2]);
+  assert.deepEqual(periods.map(row => row.markets.map(market => market.id)), [['US'], ['US']]);
+});
+
+test('monthly balance slices retain partial and unreported months without summing snapshots', () => {
+  const data = fixture();
+  data.latestPartial = true;
+  const periods = balancePeriods(executiveComparison(data, ['US', 'CA'], 2026, 1, 3, 'months'), 2026);
+  assert.deepEqual(periods.map(row => row.summary['Total Active Plastic']), [482, 484, null]);
+  assert.equal(periods[1].partial, true);
+  assert.equal(periods[1].markets[0]['Total Active Plastic'], 242);
+  assert.equal(periods[2].markets[0]['Total Active Plastic'], null);
 });
 
 test('fitted trend is a least-squares fit over the selected months only', () => {
