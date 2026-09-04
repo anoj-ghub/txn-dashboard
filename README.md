@@ -109,7 +109,7 @@ git commit -m "Load production market history"
 git push origin main
 ```
 
-The import utility validates the whole result before modifying files. It sets `metadata.kind` to `production`, updates the latest period, and changes the dashboard's demo badge. Production counts must be approved for public publication before pushing.
+The import utility validates the whole result before modifying files. It sets `metadata.kind` to `production`, updates the latest period, and updates the source description in About these numbers. Production counts must be approved for public publication before pushing.
 
 ### Later monthly loads or corrections
 
