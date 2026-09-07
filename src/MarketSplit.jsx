@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { createContext, useContext, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { METRICS, compact, percent } from './data.mjs';
 import { splitMarketRows } from './market-split.mjs';
 
 const colors = ['#006FCF', '#0891b2', '#7c3aed', '#b45309', '#be185d', '#0f766e', '#c2410c', '#475569', '#4338ca', '#9f1239', '#0369a1', '#6d28d9', '#64748b', '#22a06b'];
 
+export const MarketViewContext = createContext(false);
+
 export function MarketSplit({ model, period, metricKey, mode = 'period', pie = false, line = false, colorOf, children }) {
-  const [separate, setSeparate] = useState(false);
+  const separate = useContext(MarketViewContext);
   const [selectedKey, setSelectedKey] = useState('Txn-count');
   const key = metricKey ?? selectedKey;
   const markets = model.marketSeries;
@@ -15,8 +17,7 @@ export function MarketSplit({ model, period, metricKey, mode = 'period', pie = f
   const format = mode === 'growth' ? percent : mode === 'indexed' ? value => `${Number(value).toFixed(1)} pts` : value => compact(value, 2);
   const Chart = line || mode === 'indexed' ? LineChart : BarChart;
   const Series = line || mode === 'indexed' ? Line : Bar;
-  return <div className="ex-market-split">
-    <div className="ex-market-split-controls"><label><input type="checkbox" checked={separate} onChange={event => setSeparate(event.target.checked)} />Break down by market</label>{separate && <span>{markets.length} markets · {pie ? 'one pie per period' : line || mode === 'indexed' ? 'one line per market' : 'one bar per market in each period'}</span>}</div>
+  return <div className="ex-market-split" data-separated={separate}>
     {!separate ? children : <>
       <>{!metricKey && <div className="ex-history-tabs">{METRICS.map(metric => <button key={metric.key} aria-pressed={key === metric.key} className={key === metric.key ? "active" : ""} onClick={() => setSelectedKey(metric.key)}>{metric.label}</button>)}</div>}</>
       <div className="ex-series-legend ex-split-legend">{markets.map(market => <span key={market.id} title={market.name}><i style={{ background: color(market.id) }} />{market.id} · {market.name}</span>)}</div>

@@ -58,20 +58,24 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,su
 @media(max-width:400px){.ex-period-legend{grid-template-columns:repeat(2,minmax(0,1fr))}.ex-balance-plot,.ex-balance-empty{height:340px;min-height:340px}}
 
 .ex-market-split { min-width: 0; }
-.ex-market-split-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 12px 0 18px; font-size: 13px; color: #607b99; }
-.ex-market-split-controls label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700; color: #264c70; }
-.ex-market-split-controls input { accent-color: #006fcf; width: 16px; height: 16px; }
 .ex-split-legend { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-bottom: 16px; font-size: 12px; }
 .ex-split-pies { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
 .ex-split-pies article { min-width: 0; border: 1px solid #e4edf6; border-radius: 12px; padding: 12px; }
 .ex-split-pies h3 { text-align: center; margin: 0; font-size: 15px; }
 /* Aggregate-only controls and explanations do not apply to the market view. */
-.ex-panel:has(.ex-market-split-controls input:checked) > .ex-chart-controls,
-.ex-panel:has(.ex-market-split-controls input:checked) > .ex-year-legend,
-.ex-panel:has(.ex-market-split-controls input:checked) > .ex-period-legend,
-.ex-panel:has(.ex-market-split-controls input:checked) > .ex-grouped-market-key,
-.ex-panel:has(.ex-market-split-controls input:checked) .ex-panel-heading > .ex-check,
-.ex-balance-panel:has(.ex-market-split-controls input:checked) .ex-subtle-button,
-.ex-balance-panel:has(.ex-market-split-controls input:checked) > .ex-chart-footer,
-.ex-panel:has(.ex-market-split-controls input:checked) .ex-footer-note,
-.ex-combined:has(.ex-market-split-controls input:checked) .ex-index-legend { display: none; }
+.ex-panel:has(.ex-market-split[data-separated="true"]) > .ex-chart-controls,
+.ex-panel:has(.ex-market-split[data-separated="true"]) > .ex-year-legend,
+.ex-panel:has(.ex-market-split[data-separated="true"]) > .ex-period-legend,
+.ex-panel:has(.ex-market-split[data-separated="true"]) > .ex-grouped-market-key,
+.ex-panel:has(.ex-market-split[data-separated="true"]) .ex-panel-heading > .ex-check,
+.ex-balance-panel:has(.ex-market-split[data-separated="true"]) .ex-subtle-button,
+.ex-balance-panel:has(.ex-market-split[data-separated="true"]) > .ex-chart-footer,
+.ex-panel:has(.ex-market-split[data-separated="true"]) .ex-footer-note,
+.ex-combined:has(.ex-market-split[data-separated="true"]) .ex-index-legend { display: none; }
+
+.ex-filter-actions { flex-wrap: wrap; gap: 12px; }
+.ex-market-view { display: inline-flex; padding: 3px; border: 1px solid #bdd3e8; border-radius: 8px; background: #edf4fb; white-space: nowrap; }
+.ex-filter-actions .ex-market-view button { padding: 9px 12px; border-radius: 5px; font-size: 12px; font-weight: 650; color: #476582; }
+.ex-filter-actions .ex-market-view button[aria-pressed="true"] { color: #fff; background: #006fcf; box-shadow: 0 1px 4px #123c7320; }
+.ex-market-view button:focus-visible { outline: 2px solid #006fcf; outline-offset: 3px; }
+@media (max-width: 480px) { .ex-filter-actions .ex-market-view button { font-size: 11px; padding: 8px; } .ex-filter-actions { gap: 8px; } }
