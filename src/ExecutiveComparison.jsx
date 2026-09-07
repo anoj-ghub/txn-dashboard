@@ -111,7 +111,26 @@ export function ExecutiveReadout({ model, period }) {
   </section>;
 }
 
-function MonthlyTable({ rows, year }) {
+function MarketCell({ market, rowSpan }) {
+  return <th className="ex-market-cell" scope="rowgroup" rowSpan={rowSpan} style={{ '--flag-color': flagColors[market.id] ?? '#315f91' }}><span className="ex-table-market"><MarketIdentity market={market} /><strong>{market.name}</strong></span></th>;
+}
+
+function MonthlyTable({ rows, year, markets, separate }) {
+  if (separate) return <details className="ex-year-table ex-month-table ex-market-history-table" open>
+    <summary>All four metrics by market and month <span>Individual market values · {year}</span></summary>
+    <p>Each row is one market-month. Transactions are that market’s monthly volume; cards and accounts are its closing balances. Unreported values remain unavailable.</p>
+    <div className="ex-table-scroll"><table>
+      <thead><tr><th scope="col">Market</th><th scope="col">Month</th>{metrics.map(metric => <th scope="col" key={metric.key}>{metric.label}</th>)}</tr></thead>
+      <tbody>{markets.flatMap(market => market.series.map((point, index) => {
+        const status = rows.find(row => row.month === point.month);
+        return <tr key={`${market.id}-${point.month}`} className={`${status?.pending ? 'ex-pending-month' : ''} ${index === 0 ? 'ex-market-group-start' : ''}`}>
+          {index === 0 && <MarketCell market={market} rowSpan={market.series.length} />}
+          <th className="ex-table-period" scope="row">{point.label} {year}{!status?.complete && <small>{status?.pending ? 'Not yet reported' : 'Incomplete data'}</small>}</th>
+          {metrics.map(metric => <td key={metric.key}><strong title={number(point[metric.key])}>{compact(point[metric.key], 2)}</strong></td>)}
+        </tr>;
+      }))}</tbody>
+    </table></div>
+  </details>;
   return <details className="ex-year-table ex-month-table" open>
     <summary>All four metrics by month <span>Monthly values · {year}</span></summary>
     <p>Transactions are each month’s volume. Cards and accounts are that month’s closing balances. Unreported months are unavailable, never zero.</p>
@@ -125,7 +144,27 @@ function MonthlyTable({ rows, year }) {
   </details>;
 }
 
+function MarketYearTable({ model, period }) {
+  const periods = [{ year: period.year, reporting: true, markets: model.markets }, ...model.comparisons.map(reference => ({ ...reference, reporting: false }))].sort((a, b) => b.year - a.year);
+  return <details className="ex-year-table ex-market-history-table">
+    <summary>Show all four metrics by market and year <span>Individual values + change from each baseline</span></summary>
+    <p>Every row is one market-year; values are never combined across markets. Percentages show {period.year} compared with the baseline year in that row, using {period.short} in both years.</p>
+    <div className="ex-table-scroll"><table>
+      <thead><tr><th scope="col">Market</th><th scope="col">Year</th>{metrics.map(metric => <th scope="col" key={metric.key}>{metric.label}</th>)}</tr></thead>
+      <tbody>{model.markets.flatMap(market => periods.map((reference, index) => {
+        const row = reference.markets.find(item => item.id === market.id) ?? {};
+        return <tr key={`${market.id}-${reference.year}`} className={`${reference.reporting ? 'reporting-year' : ''} ${index === 0 ? 'ex-market-group-start' : ''}`}>
+          {index === 0 && <MarketCell market={market} rowSpan={periods.length} />}
+          <th className="ex-table-period" scope="row">{reference.year}{reference.reporting ? ' · reporting' : ''}</th>
+          {metrics.map(metric => <td key={metric.key}><strong title={number(row[metric.key])}>{compact(row[metric.key], 2)}</strong>{!reference.reporting && <span>{percent(metricComparisons(model, metric.key, market.id).find(value => value.year === reference.year)?.growth ?? null)}</span>}</td>)}
+        </tr>;
+      }))}</tbody>
+    </table></div>
+  </details>;
+}
+
 export function YearComparison({ model, period }) {
+  const separate = useContext(MarketViewContext);
   const [activeKey, setActiveKey] = useState('Txn-count');
   const monthly = model.mode === 'months';
   const metric = metrics.find(item => item.key === activeKey);
@@ -137,8 +176,8 @@ export function YearComparison({ model, period }) {
     <MarketSplit model={model} period={period} metricKey={metric.key}><div className="ex-history-scroll" tabIndex={0} aria-label={`${monthly ? 'Monthly' : 'Historical'} values chart; scroll horizontally on small screens`}><div className="ex-history-chart" style={{ minWidth: Math.max(300, rows.length * 88 + 85) }}><ResponsiveContainer width="100%" height="100%"><BarChart data={rows} margin={{ top: 28, right: 20, bottom: 6, left: 10 }} accessibilityLayer><CartesianGrid vertical={false} stroke="#e5ebe7" strokeDasharray="3 5" /><XAxis dataKey="label" {...axis} /><YAxis {...axis} width={60} tickFormatter={value => compact(value)} /><Tooltip content={<MarketComparisonTip model={model} period={period} metricKey={metric.key} />} cursor={{ fill: '#f5f7f2' }} /><Bar dataKey={metric.key} name={metric.label} maxBarSize={76} radius={[5, 5, 0, 0]} isAnimationActive={false}>{rows.map(row => <Cell key={row.label} fill={row.fill} />)}<LabelList dataKey={metric.key} position="top" formatter={value => compact(value, 2)} fill="#52674f" fontSize={13} offset={9} /></Bar></BarChart></ResponsiveContainer></div></div>
     </MarketSplit>
     {rows.length > 3 && <p className="ex-scroll-hint">Swipe or scroll to see every {monthly ? 'month' : 'year'} →</p>}
-    {monthly ? <MonthlyTable rows={rows} year={period.year} /> : <details className="ex-year-table"><summary>Show all four metrics by year <span>Values + change from each baseline</span></summary><p>Percentages show {period.year} compared with the year in that row, using {period.short} in every year. Unavailable or zero baselines produce no percentage; missing records within the reported period are never summed.</p><div className="ex-table-scroll"><table><thead><tr><th>Year</th>{metrics.map(item => <th key={item.key}>{item.label}</th>)}</tr></thead><tbody>{years.map(row => <tr key={row.year} className={row.year === period.year ? 'reporting-year' : ''}><th>{row.year}{row.year === period.year ? ' · reporting' : ''}</th>{metrics.map(item => <td key={item.key}><strong title={number(row[item.key])}>{compact(row[item.key], 2)}</strong>{row.year !== period.year && <span>{percent(metricComparisons(model, item.key).find(value => value.year === row.year)?.growth ?? null)}</span>}</td>)}</tr>)}</tbody></table></div></details>}
-    <div className="ex-chart-footer">{monthly ? 'This view shows only the selected reporting year. Choose a metric above; the table includes all four. Unreported months remain gaps.' : 'Each year remains separate. Cards and accounts are month-end balances. Unavailable values are shown as gaps.'}</div>
+    {monthly ? <MonthlyTable rows={rows} year={period.year} markets={model.marketSeries} separate={separate} /> : separate ? <MarketYearTable model={model} period={period} /> : <details className="ex-year-table"><summary>Show all four metrics by year <span>Combined values + change from each baseline</span></summary><p>Percentages show {period.year} compared with the year in that row, using {period.short} in every year. Unavailable or zero baselines produce no percentage; missing records within the reported period are never summed.</p><div className="ex-table-scroll"><table><thead><tr><th>Year</th>{metrics.map(item => <th key={item.key}>{item.label}</th>)}</tr></thead><tbody>{years.map(row => <tr key={row.year} className={row.year === period.year ? 'reporting-year' : ''}><th>{row.year}{row.year === period.year ? ' · reporting' : ''}</th>{metrics.map(item => <td key={item.key}><strong title={number(row[item.key])}>{compact(row[item.key], 2)}</strong>{row.year !== period.year && <span>{percent(metricComparisons(model, item.key).find(value => value.year === row.year)?.growth ?? null)}</span>}</td>)}</tr>)}</tbody></table></div></details>}
+    <div className="ex-chart-footer">{monthly ? separate ? 'Each market-month remains separate. Choose a metric above; the table includes all four.' : 'This view shows only the selected reporting year. Choose a metric above; the table includes all four. Unreported months remain gaps.' : separate ? 'Each market and year remains separate. Cards and accounts are month-end balances. Unavailable values are shown as gaps.' : 'Each year remains separate. Cards and accounts are month-end balances. Unavailable values are shown as gaps.'}</div>
   </section>;
 }
 

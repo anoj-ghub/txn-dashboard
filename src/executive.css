@@ -137,6 +137,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,su
 .ex-scorecard td:first-child .ex-market-identity > span,
 .ex-scorecard td:first-child button > strong { color: var(--flag-color); }
 .ex-scorecard td:first-child .ex-market-identity { min-width: 48px; }
+.ex-market-history-table .ex-market-cell { vertical-align: top; min-width: 180px; border-right: 1px solid #e5edf5; background: #fbfdff; }
+.ex-table-market { display: flex; align-items: center; gap: 8px; }
+.ex-table-market > strong,
+.ex-market-history-table .ex-market-identity > span { color: var(--flag-color); }
+.ex-table-period { min-width: 112px; }
+.ex-market-history-table tr.ex-market-group-start > * { border-top: 2px solid #cddceb; }
+.ex-market-history-table thead + tbody tr:first-child > * { border-top: 0; }
 .ex-market-value { display: inline-flex; align-items: center; gap: 2px; }
 .ex-number-trend { display: inline-flex; align-items: center; flex-shrink: 0; }
 .ex-market-kpis .ex-market-numbers .ex-number-trend-up { color: #14734d; }
