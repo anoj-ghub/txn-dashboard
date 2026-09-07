@@ -1,11 +1,11 @@
 import { MarketSplit, MarketViewContext } from './MarketSplit.jsx';
 import { PlasticChart, BasicChart } from './BalanceCharts.jsx';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Activity, ArrowRight, ArrowUpRight, BarChart3, CalendarDays, Check, ChevronDown, CreditCard, Download, Globe2, Maximize2, RotateCcw, TrendingUp, Users, WalletCards, X } from 'lucide-react';
 import { Area, Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { METRICS, MONTHS, compact, monthlySeries, number, parseData, periodKey, toCSV } from './data.mjs';
 import { fittedTrend, executiveComparison, normalizeComparison } from './executive-data.mjs';
-import { comparisonLabel, ComparisonDelta, ExecutiveReadout, YearComparison, CombinedComparison as CombinedChart, yearColor } from './ExecutiveComparison.jsx';
+import { comparisonLabel, MarketMetricList, ComparisonDelta, ExecutiveReadout, YearComparison, CombinedComparison as CombinedChart, yearColor } from './ExecutiveComparison.jsx';
 
 const METRIC_COLORS = ['#006FCF', '#0891b2', '#d08a24', '#7c3aed'];
 const MARKET_COLORS = ['#006FCF', '#0891b2', '#7c3aed', '#3b82f6', '#6366f1', '#06b6d4', '#8b5cf6', '#0ea5e9', '#4f46e5', '#0284c7', '#818cf8', '#22d3ee', '#64748b', '#94a3b8'];
@@ -51,6 +51,8 @@ function MarketFilter({ markets, selected, onChange }) {
 }
 
 function MetricCards({ model, period }) {
+  const separate = useContext(MarketViewContext);
+  if (separate) return <div className="ex-kpis ex-market-kpis">{metrics.map((metric, i) => { const Icon = icons[i]; return <article className={`ex-kpi ex-kpi-${i}`} key={metric.key} style={{ '--metric-color': metric.color }}><div className="ex-kpi-top"><span>{metric.label}</span><Icon size={23} strokeWidth={1.7} /></div><MarketMetricList model={model} metricKey={metric.key} /><div className="ex-kpi-foot">BY MARKET · {metric.kind === 'flow' ? 'PERIOD VOLUME' : 'CLOSING BALANCE'}<span>{metric.kind === 'flow' ? period.short : period.last}</span></div></article>; })}</div>;
   return <div className="ex-kpis">{metrics.map((metric, i) => {
     const Icon = icons[i];
     return <article className={`ex-kpi ex-kpi-${i}`} key={metric.key} style={{ '--metric-color': metric.color }}><div className="ex-kpi-top"><span>{metric.label}</span><Icon size={23} strokeWidth={1.7} /></div><strong className="ex-kpi-number" title={number(model.summary[metric.key])}>{compact(model.summary[metric.key], 2)}</strong><div className="ex-kpi-change"><ComparisonDelta model={model} metricKey={metric.key} /><span>{model.mode === 'months' ? 'first-to-last · ' : model.mode === 'all' ? 'range vs. ' : 'vs. '}{comparisonLabel(model)}</span></div><div className="ex-kpi-foot">{metric.kind === 'flow' ? 'PERIOD VOLUME' : 'MONTH-END BALANCE'}<span>{metric.kind === 'flow' ? period.short : model.hasReportedMonths ? `${MONTHS[period.end - 1]}` : 'Not reported'}</span></div></article>;

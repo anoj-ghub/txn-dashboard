@@ -1,5 +1,5 @@
-import { MarketSplit } from './MarketSplit.jsx';
-import { useState } from 'react';
+import { MarketSplit, MarketViewContext } from './MarketSplit.jsx';
+import { useContext, useState } from 'react';
 import { Activity, CreditCard, WalletCards, Users, Sparkles, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { Bar, BarChart, Cell, CartesianGrid, LabelList, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { METRICS, MONTHS, compact, number, percent } from './data.mjs';
@@ -74,7 +74,22 @@ function MarketComparisonTip({ active, payload, label, model, period, mode = 'ra
   return <div className="ex-tooltip ex-market-tooltip"><strong>{title}</strong><div className="ex-tooltip-total"><span>{mode === 'indexed' ? 'Selected markets · index' : valuesAreGrowth ? 'Selected markets · change' : 'Selected markets'}</span><b>{mode === 'indexed' ? `${Number(aggregate).toFixed(1)} pts` : valuesAreGrowth ? percent(aggregate) : compact(aggregate, 2)}</b></div><p>Market breakdown{mode === 'indexed' ? ' · actual values' : ''}</p><div className="ex-market-tooltip-list">{rows.map(row => <span key={row.id}><i style={{ background: marketColors[Math.max(0, model.marketSeries.findIndex(market => market.id === row.id)) % marketColors.length] }} /><em>{row.id}</em><small title={row.name}>{row.name}</small><b>{valuesAreGrowth ? percent(row.value) : compact(row.value, 2)}</b></span>)}</div></div>;
 }
 
+export function MarketMetricList({ model, metricKey, growth = false }) {
+  return <div className={`ex-market-numbers ${growth && model.mode === 'all' ? 'ex-market-ranges' : ''}`} tabIndex={0} role="region" aria-label={`${metrics.find(metric => metric.key === metricKey)?.label} by market; scroll for more`}>{model.markets.map(market => {
+    const values = metricComparisons(model, metricKey, market.id);
+    const { valid, min, max } = comparisonExtent(values);
+    const display = !growth ? compact(market[metricKey], 2) : !valid.length ? '—' : model.mode === 'all' && valid.length > 1 ? `${percent(min)} to ${percent(max)}` : percent(min);
+    const title = `${market.name}: ${number(market[metricKey])}${growth ? ' · ' + values.map(value => value.year + ': ' + percent(value.growth)).join(' · ') : ''}`;
+    return <div key={market.id} title={title}><b>{market.id}</b><span className={growth ? !valid.length ? 'unavailable' : min < 0 ? 'down' : 'up' : ''}>{display}</span></div>;
+  })}</div>;
+}
+
 export function ExecutiveReadout({ model, period }) {
+  const separate = useContext(MarketViewContext);
+  if (separate) return <section className="ex-readout ex-readout-expanded ex-market-readout" aria-label="Executive readout">
+    <div className="ex-readout-heading"><span><Sparkles size={20} />THE READOUT</span><p>{period.range} · market changes {model.mode === 'months' ? 'from first to last reported month' : 'vs. ' + comparisonLabel(model)}{model.mode === 'all' ? ' · ranges across years' : ''}</p></div>
+    <div className="ex-readout-points">{metrics.map((metric, index) => { const Icon = icons[index]; return <article key={metric.key}><h3><Icon size={18} />{metric.label}</h3><MarketMetricList model={model} metricKey={metric.key} growth /><small>{model.mode === 'all' ? 'Range by market · scroll for all · hover for each year' : 'Change by market · — means unavailable'}</small></article>; })}</div>
+  </section>;
   const all = model.mode === 'all';
   const monthly = model.mode === 'months';
   return <section className="ex-readout ex-readout-expanded" aria-label="Executive readout">

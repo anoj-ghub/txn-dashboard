@@ -1,5 +1,5 @@
-import { MarketSplit } from './MarketSplit.jsx';
-import { useState } from 'react';
+import { MarketSplit, MarketViewContext } from './MarketSplit.jsx';
+import { useContext, useState } from 'react';
 import { ArrowUpRight, BarChart3, ChevronDown, CreditCard, WalletCards } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { MONTHS, compact, number } from './data.mjs';
@@ -40,12 +40,13 @@ function PieLabel({ cx, cy, midAngle, outerRadius, percent, payload }) {
 }
 
 export function PlasticChart({ model, period, colorOf }) {
+  const separate = useContext(MarketViewContext);
   const monthly = model.mode === 'months';
   const snapshots = balancePeriods(model, period.year);
   const key = 'Total Active Plastic';
   const slices = snapshots.filter(snapshot => snapshot.summary[key] > 0).map(snapshot => ({ name: snapshot.label, value: snapshot.summary[key], snapshot }));
   return <section className="ex-panel ex-plastic ex-balance-panel">
-    <div className="ex-panel-heading"><div><span className="ex-chart-eyebrow"><i style={{ background: '#0891b2' }} />02 / PLASTIC</span><h2>{monthly ? 'Active plastic across months.' : 'Active plastic across years.'}</h2><p>{monthly ? `${period.year} · one slice per reported month` : `${model.hasReportedMonths ? MONTHS[period.end - 1] : 'Unavailable'} snapshots · one slice per year`}</p></div><span className="ex-chart-badge">PIE COMPARISON</span></div>
+    <div className="ex-panel-heading"><div><span className="ex-chart-eyebrow"><i style={{ background: '#0891b2' }} />02 / PLASTIC</span><h2>{monthly ? 'Active plastic across months.' : 'Active plastic across years.'}</h2><p>{separate ? `${period.year} · country shares per period · center shows total` : monthly ? `${period.year} · one slice per reported month` : `${model.hasReportedMonths ? MONTHS[period.end - 1] : 'Unavailable'} snapshots · one slice per year`}</p></div><span className="ex-chart-badge">PIE COMPARISON</span></div>
     <MarketSplit model={model} period={period} metricKey={key} pie colorOf={colorOf}><div className="ex-balance-plot ex-period-pie">{slices.length ? <ResponsiveContainer width="100%" height="100%"><PieChart accessibilityLayer margin={{ top: 22, bottom: 22, left: 22, right: 22 }}><Pie data={slices} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius="91%" innerRadius={0} startAngle={90} endAngle={-270} paddingAngle={1.5} stroke="#fff" strokeWidth={2} labelLine={false} label={<PieLabel />} isAnimationActive={false}>{slices.map(slice => <Cell key={slice.snapshot.id} fill={colorFor(slice.snapshot, monthly)} />)}</Pie><Tooltip content={<SnapshotTooltip snapshots={snapshots} metricKey={key} colorOf={colorOf} />} /></PieChart></ResponsiveContainer> : <EmptyChart>No positive reported plastic balances in this selection.</EmptyChart>}</div>
     </MarketSplit>
     <PeriodLegend snapshots={snapshots} monthly={monthly} metricKey={key} />

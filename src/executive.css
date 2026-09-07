@@ -79,3 +79,44 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,su
 .ex-filter-actions .ex-market-view button[aria-pressed="true"] { color: #fff; background: #006fcf; box-shadow: 0 1px 4px #123c7320; }
 .ex-market-view button:focus-visible { outline: 2px solid #006fcf; outline-offset: 3px; }
 @media (max-width: 480px) { .ex-filter-actions .ex-market-view button { font-size: 11px; padding: 8px; } .ex-filter-actions { gap: 8px; } }
+
+.ex-labeled-pie { display: block; width: 100%; max-width: 420px; height: 300px; margin: auto; overflow: visible; }
+.ex-labeled-pie path:focus, .ex-labeled-pie circle:focus { outline: none; stroke: #182e48; stroke-width: 3px; }
+.ex-split-pies { grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); }
+.ex-market-numbers { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); grid-auto-flow: row; gap: 0 14px; height: 140px; overflow: auto; align-content: start; margin-top: 14px; font-variant-numeric: tabular-nums; scrollbar-width: thin; }
+.ex-market-numbers > div { display: flex; justify-content: space-between; align-items: center; gap: 5px; min-width: 0; height: 20px; border-bottom: 1px solid #dce6ef; font-size: 12px; }
+.ex-market-numbers b { color: #426382; font-size: 11px; }
+.ex-market-numbers span { color: #244c70; white-space: nowrap; font-weight: 650; }
+.ex-market-numbers .up { color: #14734d; }
+.ex-market-numbers .down { color: #b54742; }
+.ex-market-numbers .unavailable { color: #7b8896; }
+.ex-market-kpis .ex-kpi-foot { margin-top: 12px; padding-top: 10px; font-size: 9px; }
+.ex-market-readout .ex-readout-points article { min-width: 0; }
+.ex-market-readout .ex-market-numbers { margin-top: 10px; }
+.ex-market-readout .ex-readout-points article > small { display: block; margin-top: 10px; font-size: 10px; color: #648099; }
+.ex-market-ranges { grid-template-columns: minmax(0,1fr); }
+@media(max-width:480px) { .ex-market-numbers { column-gap: 8px; } .ex-market-numbers > div { font-size: 10px; } .ex-market-numbers b { font-size: 10px; } .ex-market-kpis .ex-kpi-foot { font-size: 8px; } }
+.ex-market-kpis .ex-kpi { height: 212px; padding: 16px 18px 12px; display: flex; flex-direction: column; }
+.ex-market-kpis .ex-market-numbers { flex: 1; min-height: 0; height: auto; margin-top: 8px; }
+.ex-market-numbers > div { height: 18px; }
+.ex-market-kpis .ex-kpi-foot { flex-shrink: 0; margin-top: 8px; padding-top: 8px; }
+.ex-market-readout { height: 256px; box-sizing: border-box; display: flex; flex-direction: column; padding: 20px 26px; }
+.ex-market-readout .ex-readout-points { flex: 1; min-height: 0; }
+.ex-market-readout .ex-readout-points article { display: flex; flex-direction: column; }
+.ex-market-readout .ex-market-numbers { flex: 1; min-height: 0; height: auto; }
+.ex-market-readout .ex-market-numbers > div { border-color: #ffffff20; }
+.ex-market-readout .ex-market-numbers b { color: #c4d9ef; }
+.ex-market-readout .ex-market-numbers .up { color: #96edc8; }
+.ex-market-readout .ex-market-numbers .down { color: #ffb5ae; }
+.ex-market-readout .ex-market-numbers .unavailable, .ex-market-readout .ex-readout-points article > small { color: #bed3e8; }
+@media(max-width:900px) { .ex-market-readout { height: auto; } .ex-market-readout .ex-market-numbers { height: 126px; flex: none; } }
+@media(max-width:480px) { .ex-market-kpis .ex-kpi { height: 200px; padding: 14px 12px 10px; } }
+.ex-market-kpis .ex-kpi { padding-top: 10px; padding-bottom: 10px; }
+.ex-market-readout { align-items: stretch; gap: 12px; }
+.ex-market-readout .ex-readout-heading { width: 100%; padding-bottom: 10px; flex-shrink: 0; }
+.ex-market-readout .ex-readout-points { width: 100%; margin-top: 0; }
+.ex-market-readout .ex-readout-points article { min-height: 0; }
+.ex-market-readout .ex-readout-points h3 { margin: 0; flex-shrink: 0; }
+.ex-market-readout .ex-readout-points article > small { margin-top: 6px; line-height: 12px; flex-shrink: 0; }
+@media(max-width:900px) { .ex-market-readout .ex-readout-points { flex: none; } }
+.ex-market-readout { padding-top: 18px; padding-bottom: 18px; }
