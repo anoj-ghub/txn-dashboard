@@ -132,8 +132,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,su
 .ex-market-kpis .ex-market-numbers > div { gap: 4px; }
 .ex-market-identity { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .ex-country-flag { width: 15px; height: 10px; flex-shrink: 0; border-radius: 1px; box-shadow: 0 0 0 1px #18355220; }
-.ex-market-kpis .ex-market-numbers .ex-market-identity > span,
-.ex-market-kpis .ex-market-numbers .ex-market-value { color: var(--flag-color); }
+.ex-market-kpis .ex-market-numbers .ex-market-identity > span { color: var(--flag-color); }
+.ex-market-kpis .ex-market-numbers .ex-market-value { color: #1769b0; }
 .ex-market-value { display: inline-flex; align-items: center; gap: 2px; }
 .ex-number-trend { display: inline-flex; align-items: center; flex-shrink: 0; }
 .ex-market-kpis .ex-market-numbers .ex-number-trend-up { color: #14734d; }
