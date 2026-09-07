@@ -1,3 +1,4 @@
+import { MarketIdentity, MarketTrend, flagColors } from './MarketIdentity.jsx';
 import { MarketSplit, MarketViewContext } from './MarketSplit.jsx';
 import { useContext, useState } from 'react';
 import { Activity, CreditCard, WalletCards, Users, Sparkles, ArrowDownRight, ArrowUpRight } from 'lucide-react';
@@ -79,8 +80,8 @@ export function MarketMetricList({ model, metricKey, growth = false }) {
     const values = metricComparisons(model, metricKey, market.id);
     const { valid, min, max } = comparisonExtent(values);
     const display = !growth ? compact(market[metricKey], 2) : !valid.length ? '—' : model.mode === 'all' && valid.length > 1 ? `${percent(min)} to ${percent(max)}` : percent(min);
-    const title = `${market.name}: ${number(market[metricKey])}${growth ? ' · ' + values.map(value => value.year + ': ' + percent(value.growth)).join(' · ') : ''}`;
-    return <div key={market.id} title={title}><b>{market.id}</b><span className={growth ? !valid.length ? 'unavailable' : min < 0 ? 'down' : 'up' : ''}>{display}</span></div>;
+    const title = `${market.name}: ${number(market[metricKey])}${' · ' + values.map(value => value.year + ': ' + percent(value.growth)).join(' · ')}`;
+    return <div key={market.id} title={title} style={!growth ? { "--flag-color": flagColors[market.id] ?? "#244c70" } : undefined}>{growth ? <b>{market.id}</b> : <MarketIdentity market={market} />}<span className={growth ? !valid.length ? 'unavailable' : min < 0 ? 'down' : 'up' : 'ex-market-value'}>{display}{!growth && <MarketTrend valid={valid} min={min} max={max} />}</span></div>;
   })}</div>;
 }
 
