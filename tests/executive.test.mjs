@@ -177,3 +177,29 @@ test('donut grouping preserves the selected denominator and drilldown IDs', () =
   assert.deepEqual(marketSlices([{ count: 0 }], 'count'), []);
   assert.deepEqual(marketSlices([...rows, { count: null }], 'count'), []);
 });
+import { splitMarketRows } from '../src/market-split.mjs';
+
+test('separate market bars preserve period totals, snapshots and selection', () => {
+  const model = executiveComparison(fixture(), ['US', 'CA'], 2026, 1, 2, 'prior');
+  const volume = splitMarketRows(model, 2026, 'Txn-count');
+  assert.deepEqual(volume[0], { label: '2026', US: 1630, CA: 3630 });
+  assert.equal(volume[0].US + volume[0].CA, model.summary['Txn-count']);
+  const balances = splitMarketRows(model, 2026, 'Active Accounts');
+  assert.equal(balances[0].US, 82);
+  const selected = executiveComparison(fixture(), ['CA'], 2026, 1, 2, 'months');
+  assert.deepEqual(splitMarketRows(selected, 2026, 'Txn-count')[0], { label: 'Jan', CA: 1810 });
+});
+
+test('market changes and indexes use each market baseline and retain gaps', () => {
+  const model = executiveComparison(fixture(), ['US', 'CA'], 2026, 1, 3, 'months');
+  const growth = splitMarketRows(model, 2026, 'Txn-count', 'growth');
+  assert.equal(growth[0].US, null);
+  assert.equal(growth[1].US, (820 / 810 - 1) * 100);
+  assert.equal(growth[1].CA, (1820 / 1810 - 1) * 100);
+  assert.equal(growth[2].US, null);
+  const indexed = splitMarketRows(model, 2026, 'Txn-count', 'indexed');
+  assert.equal(indexed[0].CA, 100);
+  assert.equal(indexed[2].CA, null);
+  const annual = executiveComparison(fixture(), ['US', 'CA'], 2026, 1, 2, 'all');
+  assert.equal(splitMarketRows(annual, 2026, 'Txn-count', 'growth').length, 7);
+});

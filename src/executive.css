@@ -56,3 +56,22 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,su
 @media(max-width:1050px){.ex-period-legend{grid-template-columns:repeat(2,minmax(0,1fr));padding-left:20px;padding-right:20px}.ex-balance-plot,.ex-balance-empty{height:420px;min-height:420px}}
 @media(max-width:760px){.ex-chart-grid{grid-template-columns:minmax(0,1fr)}.ex-balance-panel>.ex-panel-heading{min-height:0;padding-bottom:14px}.ex-period-pie{padding:0 3px}.ex-balance-plot,.ex-balance-empty{height:390px;min-height:390px}.ex-period-legend{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.ex-period-legend>span{font-size:11px;gap:5px}}
 @media(max-width:400px){.ex-period-legend{grid-template-columns:repeat(2,minmax(0,1fr))}.ex-balance-plot,.ex-balance-empty{height:340px;min-height:340px}}
+
+.ex-market-split { min-width: 0; }
+.ex-market-split-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 12px 0 18px; font-size: 13px; color: #607b99; }
+.ex-market-split-controls label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700; color: #264c70; }
+.ex-market-split-controls input { accent-color: #006fcf; width: 16px; height: 16px; }
+.ex-split-legend { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-bottom: 16px; font-size: 12px; }
+.ex-split-pies { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.ex-split-pies article { min-width: 0; border: 1px solid #e4edf6; border-radius: 12px; padding: 12px; }
+.ex-split-pies h3 { text-align: center; margin: 0; font-size: 15px; }
+/* Aggregate-only controls and explanations do not apply to the market view. */
+.ex-panel:has(.ex-market-split-controls input:checked) > .ex-chart-controls,
+.ex-panel:has(.ex-market-split-controls input:checked) > .ex-year-legend,
+.ex-panel:has(.ex-market-split-controls input:checked) > .ex-period-legend,
+.ex-panel:has(.ex-market-split-controls input:checked) > .ex-grouped-market-key,
+.ex-panel:has(.ex-market-split-controls input:checked) .ex-panel-heading > .ex-check,
+.ex-balance-panel:has(.ex-market-split-controls input:checked) .ex-subtle-button,
+.ex-balance-panel:has(.ex-market-split-controls input:checked) > .ex-chart-footer,
+.ex-panel:has(.ex-market-split-controls input:checked) .ex-footer-note,
+.ex-combined:has(.ex-market-split-controls input:checked) .ex-index-legend { display: none; }
