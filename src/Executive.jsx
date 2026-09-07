@@ -61,12 +61,14 @@ function MetricCards({ model, period }) {
 }
 
 function TransactionChart({ model, period, marketRows, selected, colorOf, compare }) {
+  const separate = useContext(MarketViewContext);
   const [trend, setTrend] = useState(true);
   const [prior, setPrior] = useState(true);
   const trendRows = fittedTrend(model.reportedSeries, 'Txn-count');
   const fitted = model.series.map((row, i) => ({ ...row, fitted: trendRows[i]?.fitted ?? null, previous: model.previous[i]?.['Txn-count'], ...Object.fromEntries(model.comparisons.map(reference => [`year${reference.year}`, reference.series[i]?.['Txn-count']])) }));
   const stacked = marketRows.map((row, i) => ({ ...row, ...Object.fromEntries(model.comparisons.map(reference => [`year${reference.year}`, reference.series[i]?.['Txn-count']])) }));
   const max = model.series.filter(row => row['Txn-count'] != null).sort((a, b) => b['Txn-count'] - a['Txn-count'])[0];
+  const marketMax = model.marketSeries.flatMap(market => market.series.map(row => ({ market, label: row.label, value: row['Txn-count'] }))).filter(row => row.value != null).sort((a, b) => b.value - a.value)[0];
   return <section className="ex-panel ex-transactions" id="activity">
     <div className="ex-panel-heading"><div><span className="ex-chart-eyebrow"><i style={{ background: metrics[0].color }} />01 / ACTIVITY</span><h2>Transaction momentum</h2><p>{compare ? 'Monthly volume, stacked by selected market' : 'Monthly volume with a clear view of direction'}</p></div><span className="ex-chart-badge">{compare ? 'STACKED BARS' : 'BARS + TREND'}</span></div>
     <div className="ex-chart-controls"><span className="ex-current-legend"><i />{period.year}</span>{model.mode !== 'months' && <label><input type="checkbox" checked={prior} onChange={event => setPrior(event.target.checked)} />Show comparison years</label>}{!compare && <label><input type="checkbox" checked={trend} onChange={event => setTrend(event.target.checked)} /><span className="ex-dash" />Fitted trend</label>}{compare && <div className="ex-series-legend">{selected.map(market => <span key={market.id}><i style={{ background: colorOf(market.id) }} />{market.id}</span>)}</div>}</div>
@@ -81,7 +83,7 @@ function TransactionChart({ model, period, marketRows, selected, colorOf, compar
       {prior && (compare || model.mode === 'all') && model.comparisons.map(reference => <Line key={reference.year} dataKey={`year${reference.year}`} name={`${reference.year} transactions`} stroke={yearColor(reference.year)} strokeWidth={2} dot={period.start === period.end ? { r: 4 } : false} isAnimationActive={false} />)}
     </ComposedChart></ResponsiveContainer></div>
     </MarketSplit>
-    <div className="ex-chart-footer"><TrendingUp size={17} /><span>{max ? <><strong>{max.label}</strong> recorded the highest observed volume: <strong>{compact(max['Txn-count'], 2)}</strong>.</> : 'No complete monthly totals are available.'}</span><span className="ex-footer-note">{compare ? 'Each bar = monthly total' : 'Trend fitted to observed months only'}</span></div>
+    <div className="ex-chart-footer"><TrendingUp size={17} /><span>{separate ? marketMax ? <><strong>{marketMax.market.id}</strong> · <strong>{marketMax.label}</strong> recorded the highest individual market volume: <strong>{compact(marketMax.value, 2)}</strong>.</> : 'No individual market volumes are available.' : max ? <><strong>{max.label}</strong> recorded the highest combined volume: <strong>{compact(max['Txn-count'], 2)}</strong>.</> : 'No complete monthly totals are available.'}</span><span className="ex-footer-note">{compare ? 'Each bar = monthly total' : 'Trend fitted to observed months only'}</span></div>
   </section>;
 }
 
