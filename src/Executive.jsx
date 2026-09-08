@@ -206,7 +206,27 @@ export default function Executive() {
       </>}
       <footer className="ex-page-footer"><span className="ex-footer-brand">atlas<span>.</span></span><span>Market intelligence, with perspective.</span></footer>
     </main>
-    <dialog className="ex-help" ref={help}><div><span className="ex-chart-eyebrow">THE METHODOLOGY</span><button aria-label="Close metric definitions" onClick={() => help.current.close()}><X size={23} /></button></div><h2>Good decisions start with clear definitions.</h2><dl><dt>Transactions are period totals.</dt><dd>We sum transactions for the selected markets and months. Bar charts show individual monthly totals.</dd><dt>Cards and accounts are snapshots.</dt><dd>KPI cards and year-comparison balances use the last reported month within the selection. If the selection contains no reported months, balances are unavailable. Monthly snapshots are never summed across time.</dd><dt>Comparison choices.</dt><dd>Choose months within the selected year, any available comparison year, or every previous year separately. Within-year KPI and scorecard changes compare the first and last reported month; the combined chart shows month-over-month change. Year baselines use the same markets and months. When the reporting year is partial, year summaries stop at its latest reported month for every comparison year. Missing or zero baselines show no percentage.</dd><dt>Trendlines describe history.</dt><dd>The dashed transaction trend is a linear least-squares fit across the selected months. It is not a forecast. It requires at least two complete months.</dd><dt>Pie slices compare period snapshots.</dt><dd>Each plastic slice represents the selected markets’ balance in one year or month. Slice areas compare those snapshots; they are not distinct populations and must not be summed into a portfolio total across time. Hover any slice to see its market breakdown.</dd></dl><p className="ex-help-note">{metadata?.kind === 'synthetic' ? 'This release contains synthetic full-month demonstration data.' : 'Source: published monthly market dataset.'} Confirm source definitions of “plastic,” “basic,” and “active” with the data owner.</p></dialog>
+    <dialog className="ex-help" ref={help}>
+      <div><span className="ex-chart-eyebrow">THE METHODOLOGY</span><button aria-label="Close metric definitions" onClick={() => help.current.close()}><X size={23} /></button></div>
+      <h2>Good decisions start with clear definitions.</h2>
+      <dl>
+        <dt>The market view controls how values are displayed.</dt>
+        <dd><b>By market</b> keeps every selected market separate in the summary strip, readout, charts, and expanded metrics table. <b>Combined markets</b> adds the selected markets into one portfolio value for each period. The toggle does not change the market or date filters; Export CSV contains the underlying selected market-month records.</dd>
+        <dt>Transactions are period totals.</dt>
+        <dd>Transactions are summed across the selected months. By market shows each market’s volume; Combined markets also sums those volumes across the selected markets.</dd>
+        <dt>Cards and accounts are snapshots.</dt>
+        <dd>KPI cards and year-comparison balances use the last reported month within the selection. By market keeps each market’s closing balance separate; Combined markets adds the selected market balances. If the selection contains no reported months, balances are unavailable. Monthly snapshots are never summed across time.</dd>
+        <dt>Comparison choices.</dt>
+        <dd>Choose months within the selected year, any available comparison year, or every previous year separately. Within-year KPI and scorecard changes compare the first and last reported month; the combined chart shows month-over-month change. Year baselines use the same markets and months. When the reporting year is partial, year summaries stop at its latest reported month for every comparison year. Missing or zero baselines show no percentage.</dd>
+        <dt>Arrows show the direction of change.</dt>
+        <dd>An up or down arrow means the value increased or decreased against the selected comparison. It does not judge that movement as positive or negative.</dd>
+        <dt>Trendlines describe history.</dt>
+        <dd>The dashed transaction trend is a linear least-squares fit across the selected months. It is not a forecast. It requires at least two complete months.</dd>
+        <dt>Pie slices depend on the market view.</dt>
+        <dd>By market shows one pie for each period. Its slices are the selected markets’ shares, labeled with country code and percentage; the center shows their combined balance. Combined markets uses each slice for one year or month’s portfolio snapshot. Period snapshots are separate observations and must not be summed across time.</dd>
+      </dl>
+      <p className="ex-help-note">{metadata?.kind === 'synthetic' ? 'This release contains synthetic full-month demonstration data.' : 'Source: published monthly market dataset.'} Confirm source definitions of “plastic,” “basic,” and “active” with the data owner.</p>
+    </dialog>
     {toast && <div className="ex-toast" role="status"><Check size={18} />{toast}</div>}
   </div></MarketViewContext.Provider>;
 }
